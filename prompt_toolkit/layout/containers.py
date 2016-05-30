@@ -81,6 +81,35 @@ class Container(with_metaclass(ABCMeta, object)):
         Walk through all the layout nodes (and their children) and yield them.
         """
 
+    def is_focussable(self, cli):
+        """
+        Return `True` when this Container is focussable. This is independent of
+        the children. (We can return False, while a child container returns
+        True.)
+        """
+        return False
+
+    def get_focussed_buffer(self, cli):
+        """
+        Return the `Buffer` object that is currently focussed. This can be None
+        if there is no buffer inside this widget.
+        """
+        return None
+
+    def get_key_bindings(self, cli):
+        """
+        Return the key bindings for this buffer. When this control has the
+        focus, these key bindings are included.
+        """
+
+    def get_buffers(self):
+        return {}
+
+        #return {
+        #    'DEFAULT': Buffer(),
+        #    'SEARCH': Buffer(),
+        #}
+
 
 def _window_too_small():
     " Create a `Window` that displays the 'Window too small' text. "
@@ -955,6 +984,16 @@ class Window(Container):
         #: output.)
         self.render_info = None
 
+    def get_key_bindings(self, cli):
+        " Take the key bindings from the UIControl. "
+        return self.content.get_key_bindings(cli)
+
+    def get_focussed_buffer(self, cli):
+        return self.content.get_focussed_buffer(cli)
+
+    def is_focussable(self, cli):
+        return self.content.is_focussable(cli)
+
     def _get_margin_width(self, cli, margin):
         """
         Return the width for this margin.
@@ -1079,7 +1118,8 @@ class Window(Container):
             cli, ui_content, screen, write_position,
             sum(left_margin_widths), write_position.width - total_margin_width,
             self.vertical_scroll, self.horizontal_scroll,
-            has_focus=self.content.has_focus(cli),
+            has_focus=cli.focussed_container == self,
+#                    ###self.content.has_focus(cli),
             wrap_lines=wrap_lines, highlight_lines=True,
             vertical_scroll_2=self.vertical_scroll_2,
             always_hide_cursor=self.always_hide_cursor(cli))

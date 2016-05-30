@@ -67,6 +67,14 @@ class Processor(with_metaclass(ABCMeta, object)):
         """
         return False
 
+    def get_buffer(self, cli):
+        """
+        When `has_focus` returns True, this is supposed to return the `Buffer`
+        that is displayed.
+        """
+        return None
+
+
 
 class Transformation(object):
     """

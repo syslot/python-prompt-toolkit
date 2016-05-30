@@ -106,11 +106,20 @@ class CommandLineInterface(object):
         #: '0' means: don't postpone. '.5' means: try to draw at least twice a second.
         self.max_render_postpone_time = 0  # E.g. .5
 
+        #: The container object that has the focus.
+        self.focussed_container = None
+
+        for container in self.layout.walk(self):
+            if container.is_focussable(self):
+                self.focussed_container = container
+                break
+
         # Invalidate flag. When 'True', a repaint has been scheduled.
         self._invalidated = False
 
         #: The `InputProcessor` instance.
-        self.input_processor = InputProcessor(application.key_bindings_registry, weakref.ref(self))
+        self.input_processor = InputProcessor(
+            application.key_bindings_registry, weakref.ref(self))
 
         self._async_completers = {}  # Map buffer name to completer function.
 
@@ -207,12 +216,12 @@ class CommandLineInterface(object):
                       insert_common_part=insert_common_part,
                       complete_event=CompleteEvent(completion_requested=True))
 
-    @property
-    def current_buffer_name(self):
-        """
-        The name of the current  :class:`.Buffer`. (Or `None`.)
-        """
-        return self.buffers.current_name(self)
+#    @property
+#    def current_buffer_name(self):
+#        """
+#        The name of the current  :class:`.Buffer`. (Or `None`.)
+#        """
+#        return self.buffers.current_name(self)
 
     @property
     def current_buffer(self):
@@ -223,25 +232,33 @@ class CommandLineInterface(object):
         has the focus. In this case, it's really not practical to check for
         `None` values or catch exceptions every time.)
         """
-        return self.buffers.current(self)
+        if self.focussed_container:
+            result = self.focussed_container.get_focussed_buffer(self)
+            if result is not None:
+                return result
 
-    def focus(self, buffer_name):
-        """
-        Focus the buffer with the given name on the focus stack.
-        """
-        self.buffers.focus(self, buffer_name)
+        # Return dummy buffer.
+        return Buffer()
 
-    def push_focus(self, buffer_name):
-        """
-        Push to the focus stack.
-        """
-        self.buffers.push_focus(self, buffer_name)
+#        return self.buffers.current(self)
 
-    def pop_focus(self):
-        """
-        Pop from the focus stack.
-        """
-        self.buffers.pop_focus(self)
+#    def focus(self, buffer_name):
+#        """
+#        Focus the buffer with the given name on the focus stack.
+#        """
+#        self.buffers.focus(self, buffer_name)
+#
+#    def push_focus(self, buffer_name):
+#        """
+#        Push to the focus stack.
+#        """
+#        self.buffers.push_focus(self, buffer_name)
+#
+#    def pop_focus(self):
+#        """
+#        Pop from the focus stack.
+#        """
+#        self.buffers.pop_focus(self)
 
     @property
     def terminal_title(self):

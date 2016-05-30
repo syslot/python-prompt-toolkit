@@ -16,6 +16,7 @@ from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.selection import SelectionType
 from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
+from prompt_toolkit.buffer import Buffer
 
 from .lexers import Lexer, SimpleLexer
 from .processors import Processor
@@ -92,6 +93,20 @@ class UIControl(with_metaclass(ABCMeta, object)):
         """
         Request to move the cursor up.
         """
+
+    def get_key_bindings(self, cli):
+        """
+        Additional key bindings for this user control.
+        """
+
+    def get_focussed_buffer(self, cli):
+        """
+        The currently focussed buffer. (If one.)
+        """
+        return None
+
+    def is_focussable(self, cli):
+        return False
 
 
 class UIContent(object):
@@ -431,15 +446,18 @@ class BufferControl(UIControl):
     :param focus_on_click: Focus this buffer when it's click, but not yet focussed.
     """
     def __init__(self,
-                 buffer_name=DEFAULT_BUFFER,
+                 buffer=None,
                  input_processors=None,
                  lexer=None,
                  preview_search=False,
-                 search_buffer_name=SEARCH_BUFFER,
                  get_search_state=None,
                  menu_position=None,
                  default_char=None,
-                 focus_on_click=False):
+                 focus_on_click=False,
+
+#                 buffer_name='',  # XXX: not used anymore.
+):#                 search_buffer_name=''):  # XXX: not used anymore.
+        assert isinstance(buffer, Buffer)
         assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
         assert menu_position is None or callable(menu_position)
         assert lexer is None or isinstance(lexer, Lexer)
@@ -450,12 +468,13 @@ class BufferControl(UIControl):
         self.get_search_state = get_search_state
         self.focus_on_click = to_cli_filter(focus_on_click)
 
+        self.buffer = buffer
         self.input_processors = input_processors or []
-        self.buffer_name = buffer_name
+#        self.buffer_name = buffer_name
         self.menu_position = menu_position
         self.lexer = lexer or SimpleLexer()
         self.default_char = default_char or Char(token=Token.Transparent)
-        self.search_buffer_name = search_buffer_name
+#        self.search_buffer_name = search_buffer_name
 
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
@@ -471,7 +490,14 @@ class BufferControl(UIControl):
         """
         The buffer object that contains the 'main' content.
         """
-        return cli.buffers[self.buffer_name]
+        return self.buffer
+#        return cli.buffers[self.buffer_name]
+
+    def is_focussable(self, cli):
+        return True
+
+    def get_focussed_buffer(self, cli):
+        return self.buffer  # XXX: except, when searching, return the search buffer.
 
     def has_focus(self, cli):
         # This control gets the focussed if the actual `Buffer` instance has the
@@ -644,7 +670,8 @@ class BufferControl(UIControl):
         # If there is an auto completion going on, use that start point for a
         # pop-up menu position. (But only when this buffer has the focus --
         # there is only one place for a menu, determined by the focussed buffer.)
-        if cli.current_buffer_name == self.buffer_name:
+        if False:
+#        if cli.current_buffer_name == self.buffer_name:
             menu_position = self.menu_position(cli) if self.menu_position else None
             if menu_position is not None:
                 assert isinstance(menu_position, int)

@@ -17,12 +17,17 @@ from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict
 
+default_buffer = Buffer()
+result_buffer = Buffer()
+
+w1 = Window(content=BufferControl(default_buffer))
+w2 = Window(content=BufferControl(result_buffer))
 
 layout = VSplit([
-    Window(content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+    w1,
     Window(width=D.exact(1),
            content=FillControl('|', token=Token.Line)),
-    Window(content=BufferControl(buffer_name='RESULT')),
+    w2,
 ])
 
 def get_menu_tokens(cli):
@@ -93,17 +98,24 @@ manager = KeyBindingManager()  # Start with the `KeyBindingManager`.
 def _(event):
     event.cli.set_return_value(None)
 
+@manager.registry.add_binding(Keys.ControlW, eager=True)
+def _(event):
+    " Change focus. "
+    if event.cli.focussed_container == w1:
+        event.cli.focussed_container = w2
+    else:
+        event.cli.focussed_container = w1
 
-buffers={
-    DEFAULT_BUFFER: Buffer(is_multiline=True),
-    'RESULT': Buffer(is_multiline=True),
-}
+#buffers={
+#    DEFAULT_BUFFER: Buffer(is_multiline=True),
+#    'RESULT': Buffer(is_multiline=True),
+#}
 
-def default_buffer_changed(cli):
-    buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text[::-1]
-
-
-buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
+#def default_buffer_changed(cli):
+#    buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text[::-1]
+#
+#
+#buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
 
 style = {
         Token.MenuBar: 'bg:#0000ff #ffff00',
@@ -115,7 +127,7 @@ style = {
 
 application = Application(
     layout=layout,
-    buffers=buffers,
+#    buffers=buffers,
     key_bindings_registry=manager.registry,
     style=style_from_dict(style),
 
@@ -130,6 +142,7 @@ application = Application(
 # 4. Run the application
 #    -------------------
 
+def run():
 
     eventloop = create_eventloop()
 
@@ -144,9 +157,6 @@ application = Application(
 if __name__ == '__main__':
     run()
 
-
-a = Textfield()
-a.text
 
 """
 

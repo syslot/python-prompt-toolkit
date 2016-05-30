@@ -97,33 +97,54 @@ class InputProcessor(object):
         #: https://www.gnu.org/software/bash/manual/html_node/Readline-Arguments.html
         self.arg = None
 
+    def _registries(self):
+        cli = self._cli_ref()
+
+        # If the current focussed widget has his own key bindings, yield that
+        # first.
+        if cli.focussed_container:
+            bindings = cli.focussed_container.get_key_bindings(cli)
+            if bindings: yield bindings
+
+        # The application wide bindings.
+        yield self._registry
+
     def _get_matches(self, key_presses):
         """
         For a list of :class:`KeyPress` instances. Give the matching handlers
         that would handle this.
         """
-        keys = tuple(k.key for k in key_presses)
-        cli = self._cli_ref()
+        for reg in self._registries():
+            keys = tuple(k.key for k in key_presses)
+            cli = self._cli_ref()
 
-        # Try match, with mode flag
-        return [b for b in self._registry.get_bindings_for_keys(keys) if b.filter(cli)]
+            # Try match, with mode flag
+            results = [b for b in self._registry.get_bindings_for_keys(keys) if b.filter(cli)]
+            if results:
+                return results
+
+        return []
 
     def _is_prefix_of_longer_match(self, key_presses):
         """
         For a list of :class:`KeyPress` instances. Return True if there is any
         handler that is bound to a suffix of this keys.
         """
-        keys = tuple(k.key for k in key_presses)
-        cli = self._cli_ref()
+        for reg in self._registries():
+            keys = tuple(k.key for k in key_presses)
+            cli = self._cli_ref()
 
-        # Get the filters for all the key bindings that have a longer match.
-        # Note that we transform it into a `set`, because we don't care about
-        # the actual bindings and executing it more than once doesn't make
-        # sense. (Many key bindings share the same filter.)
-        filters = set(b.filter for b in self._registry.get_bindings_starting_with_keys(keys))
+            # Get the filters for all the key bindings that have a longer match.
+            # Note that we transform it into a `set`, because we don't care about
+            # the actual bindings and executing it more than once doesn't make
+            # sense. (Many key bindings share the same filter.)
+            filters = set(b.filter for b in self._registry.get_bindings_starting_with_keys(keys))
 
-        # When any key binding is active, return True.
-        return any(f(cli) for f in filters)
+            # When any key binding is active, return True.
+            if any(f(cli) for f in filters):
+                return True
+
+        return False
 
     def _process(self):
         """

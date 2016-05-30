@@ -9,7 +9,7 @@ from prompt_toolkit.key_binding.vi_state import InputMode as ViInputMode
 __all__ = (
     'HasArg',
     'HasCompletions',
-    'HasFocus',
+#    'HasFocus',
     'InFocusStack',
     'HasSearch',
     'HasSelection',
@@ -37,18 +37,18 @@ __all__ = (
 )
 
 
-class HasFocus(Filter):
-    """
-    Enable when this buffer has the focus.
-    """
-    def __init__(self, buffer_name):
-        self.buffer_name = buffer_name
-
-    def __call__(self, cli):
-        return cli.current_buffer_name == self.buffer_name
-
-    def __repr__(self):
-        return 'HasFocus(%r)' % self.buffer_name
+#class HasFocus(Filter):
+#    """
+#    Enable when this buffer has the focus.
+#    """
+#    def __init__(self, buffer_name):
+#        self.buffer_name = buffer_name
+#
+#    def __call__(self, cli):
+#        return cli.current_buffer_name == self.buffer_name
+#
+#    def __repr__(self):
+#        return 'HasFocus(%r)' % self.buffer_name
 
 
 class InFocusStack(Filter):
