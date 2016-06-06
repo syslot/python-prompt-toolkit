@@ -102,8 +102,8 @@ class InputProcessor(object):
 
         # If the current focussed widget has his own key bindings, yield that
         # first.
-        if cli.focussed_container:
-            bindings = cli.focussed_container.get_key_bindings(cli)
+        if cli.focus_obj:
+            bindings = cli.focus_obj.get_key_bindings(cli)
             if bindings: yield bindings
 
         # The application wide bindings.

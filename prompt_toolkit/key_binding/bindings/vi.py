@@ -20,6 +20,8 @@ import codecs
 import six
 import string
 
+def HasFocus(*_): return Condition(lambda cli: False)  # XXX: remove
+
 __all__ = (
     'load_vi_bindings',
     'load_vi_search_bindings',
@@ -1478,7 +1480,7 @@ def load_vi_open_in_editor_bindings(registry, filter=None):
 
 
 def load_vi_system_bindings(registry, filter=None):
-    has_focus = filters.HasFocus(SYSTEM_BUFFER)
+    has_focus = HasFocus(SYSTEM_BUFFER)
     navigation_mode = ViNavigationMode()
 
     handle = create_handle_decorator(registry, filter & ViMode())
@@ -1523,7 +1525,7 @@ def load_vi_search_bindings(registry, get_search_state=None,
     if not get_search_state:
         def get_search_state(cli): return cli.search_state
 
-    has_focus = filters.HasFocus(search_buffer_name)
+    has_focus = HasFocus(search_buffer_name)
     navigation_mode = ViNavigationMode()
     handle = create_handle_decorator(registry, filter & ViMode())
 

@@ -9,7 +9,7 @@ from six import with_metaclass
 from six.moves import range
 
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
+##from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
 from prompt_toolkit.filters import to_cli_filter
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.search_state import SearchState
@@ -18,6 +18,7 @@ from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
 from prompt_toolkit.buffer import Buffer
 
+from .focus import Focus, DynamicFocus
 from .lexers import Lexer, SimpleLexer
 from .processors import Processor
 from .screen import Char, Point
@@ -50,16 +51,16 @@ class UIControl(with_metaclass(ABCMeta, object)):
     def preferred_height(self, cli, width, max_available_height, wrap_lines):
         return None
 
-    def has_focus(self, cli):
-        """
-        Return ``True`` when this user control has the focus.
-
-        If so, the cursor will be displayed according to the cursor position
-        reported by :meth:`.UIControl.create_content`. If the created content
-        has the property ``show_cursor=False``, the cursor will be hidden from
-        the output.
-        """
-        return False
+#    def has_focus(self, cli):
+#        """
+#        Return ``True`` when this user control has the focus.
+#
+#        If so, the cursor will be displayed according to the cursor position
+#        reported by :meth:`.UIControl.create_content`. If the created content
+#        has the property ``show_cursor=False``, the cursor will be hidden from
+#        the output.
+#        """
+#        return False
 
     @abstractmethod
     def create_content(self, cli, width, height):
@@ -94,19 +95,22 @@ class UIControl(with_metaclass(ABCMeta, object)):
         Request to move the cursor up.
         """
 
-    def get_key_bindings(self, cli):
-        """
-        Additional key bindings for this user control.
-        """
-
-    def get_focussed_buffer(self, cli):
-        """
-        The currently focussed buffer. (If one.)
-        """
+    def get_focus_obj(self):
         return None
 
-    def is_focussable(self, cli):
-        return False
+#    def get_key_bindings(self, cli):
+#        """
+#        Additional key bindings for this user control.
+#        """
+#
+#    def get_focussed_buffer(self, cli):
+#        """
+#        The currently focussed buffer. (If one.)
+#        """
+#        return None
+#
+#    def is_focussable(self, cli):
+#        return False
 
 
 class UIContent(object):
@@ -447,6 +451,7 @@ class BufferControl(UIControl):
     """
     def __init__(self,
                  buffer=None,
+                 search_state=None,
                  input_processors=None,
                  lexer=None,
                  preview_search=False,
@@ -458,6 +463,7 @@ class BufferControl(UIControl):
 #                 buffer_name='',  # XXX: not used anymore.
 ):#                 search_buffer_name=''):  # XXX: not used anymore.
         assert isinstance(buffer, Buffer)
+        assert search_state is None or isinstance(search_state, SearchState)
         assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
         assert menu_position is None or callable(menu_position)
         assert lexer is None or isinstance(lexer, Lexer)
@@ -469,12 +475,11 @@ class BufferControl(UIControl):
         self.focus_on_click = to_cli_filter(focus_on_click)
 
         self.buffer = buffer
+        self.search_state = search_state
         self.input_processors = input_processors or []
-#        self.buffer_name = buffer_name
         self.menu_position = menu_position
         self.lexer = lexer or SimpleLexer()
         self.default_char = default_char or Char(token=Token.Transparent)
-#        self.search_buffer_name = search_buffer_name
 
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
@@ -486,18 +491,61 @@ class BufferControl(UIControl):
         self._last_click_timestamp = None
         self._last_get_processed_line = None
 
+        #: Search state: True when we are searching through this widget, and
+        #: the focus should be redirected to the search widget.
+        self.is_searching = False
+
     def _buffer(self, cli):
         """
         The buffer object that contains the 'main' content.
         """
         return self.buffer
-#        return cli.buffers[self.buffer_name]
 
-    def is_focussable(self, cli):
-        return True
+    def is_searchable(self, cli):
+        """
+        A `BufferControl` is considered to be focussable when either the
+        `search_buffer` is displayed in another `Window`, or when the search
+        buffer is displayed through an `InputProcessor`.
+        """
+        if self.search_state:
+            search_buffer = self.search_state.search_buffer
+        else:
+            return False
 
-    def get_focussed_buffer(self, cli):
-        return self.buffer  # XXX: except, when searching, return the search buffer.
+        for container in cli.layout.walk(cli):
+            f = container.get_focus_obj(cli)
+
+            if f is not None:
+                control = f.get_buffer_control(cli)
+                if control.buffer == search_buffer:
+                    return True
+
+
+    def get_focus_obj(self):
+        """
+        """
+        search_focus = _SearchFocus(self)
+        buffercontrol_focus = _BufferControlFocus(self)
+
+        def get_focus(cli):
+            """
+            When the user wants to search the current buffer,
+            make sure to return the `Focus` object of whatever widget
+            represents the search buffer.
+            (This is a focus redirection.)
+            """
+            if self.is_searching:
+                return search_focus
+            else:
+                return buffercontrol_focus
+
+        return DynamicFocus(get_focus)
+
+#    def is_focussable(self, cli):
+#        return True
+#
+#    def get_focussed_buffer(self, cli):
+#        return self.buffer  # XXX: except, when searching, return the search buffer.
 
     def has_focus(self, cli):
         # This control gets the focussed if the actual `Buffer` instance has the
@@ -755,3 +803,38 @@ class BufferControl(UIControl):
     def move_cursor_up(self, cli):
         b = self._buffer(cli)
         b.cursor_position += b.document.get_cursor_up_position()
+
+
+class _BufferControlFocus(Focus):
+    """
+    The object that represents the focus when a `BufferControl` gets the focus.
+    """
+    def __init__(self, buffer_control):
+        assert isinstance(buffer_control, BufferControl)
+        self.buffer_control = buffer_control
+
+    def get_focussed_buffer(self, cli):
+        return self.buffer_control.buffer
+
+    def get_buffer_control(self, cli):
+        return self.buffer_control
+
+
+class _SearchFocus(Focus):
+    """
+    When a `BufferControl` is redirecting the focus to its search widget.
+
+    :param buffer_control: The `BufferControl` that displays the searchable
+        text, not the widget that displays the actual search string.
+    """
+    def __init__(self, buffer_control):
+        assert isinstance(buffer_control, BufferControl)
+        self.buffer_control = buffer_control
+
+    def get_focussed_buffer(self, cli):
+        search_state = self.buffer_control.search_state
+        if search_state is not None:
+            return self.buffer_control.search_state.search_buffer
+
+    def get_buffer_control(self, cli):
+        return self.buffer_control

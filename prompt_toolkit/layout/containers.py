@@ -81,34 +81,12 @@ class Container(with_metaclass(ABCMeta, object)):
         Walk through all the layout nodes (and their children) and yield them.
         """
 
-    def is_focussable(self, cli):
+    def get_focus_obj(self, cli):
         """
-        Return `True` when this Container is focussable. This is independent of
-        the children. (We can return False, while a child container returns
-        True.)
-        """
-        return False
-
-    def get_focussed_buffer(self, cli):
-        """
-        Return the `Buffer` object that is currently focussed. This can be None
-        if there is no buffer inside this widget.
+        When this container contains a widget that is focussable, this should
+        return the default Focus object.
         """
         return None
-
-    def get_key_bindings(self, cli):
-        """
-        Return the key bindings for this buffer. When this control has the
-        focus, these key bindings are included.
-        """
-
-    def get_buffers(self):
-        return {}
-
-        #return {
-        #    'DEFAULT': Buffer(),
-        #    'SEARCH': Buffer(),
-        #}
 
 
 def _window_too_small():
@@ -963,6 +941,7 @@ class Window(Container):
         self._ui_content_cache = SimpleCache(maxsize=8)
         self._margin_width_cache = SimpleCache(maxsize=1)
 
+        self._focus_obj = self.content.get_focus_obj()
         self.reset()
 
     def __repr__(self):
@@ -984,15 +963,15 @@ class Window(Container):
         #: output.)
         self.render_info = None
 
-    def get_key_bindings(self, cli):
-        " Take the key bindings from the UIControl. "
-        return self.content.get_key_bindings(cli)
+    def get_focus_obj(self, cli):
+        return self._focus_obj
 
-    def get_focussed_buffer(self, cli):
-        return self.content.get_focussed_buffer(cli)
+    def is_focussed(self, cli):
+        return self._focus_obj == cli.focus_obj
 
-    def is_focussable(self, cli):
-        return self.content.is_focussable(cli)
+    def focus(self, cli):
+        if self._focus_obj is not None:
+            cli.focus_obj = self._focus_obj
 
     def _get_margin_width(self, cli, margin):
         """
@@ -1118,7 +1097,7 @@ class Window(Container):
             cli, ui_content, screen, write_position,
             sum(left_margin_widths), write_position.width - total_margin_width,
             self.vertical_scroll, self.horizontal_scroll,
-            has_focus=cli.focussed_container == self,
+            has_focus=cli.focus_obj == self._focus_obj,
 #                    ###self.content.has_focus(cli),
             wrap_lines=wrap_lines, highlight_lines=True,
             vertical_scroll_2=self.vertical_scroll_2,

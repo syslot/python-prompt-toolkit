@@ -62,7 +62,7 @@ class Application(object):
     :param mouse_support: (:class:`~prompt_toolkit.filters.CLIFilter` or
         boolean). When True, enable mouse support.
     :param paste_mode: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
-    :param ignore_case: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
+#    :param ignore_case: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
     :param editing_mode: :class:`~prompt_toolkit.enums.EditingMode`.
 
     Callbacks (all of these should accept a
@@ -87,14 +87,16 @@ class Application(object):
                  use_alternate_screen=False, mouse_support=False,
                  get_title=None,
 
-                 paste_mode=False, ignore_case=False, editing_mode=EditingMode.EMACS,
+                 paste_mode=False,
+#                 ignore_case=False,
+                 editing_mode=EditingMode.EMACS,
 
                  on_input_timeout=None, on_start=None, on_stop=None,
                  on_reset=None, on_initialize=None, on_buffer_changed=None,
                  on_render=None, on_invalidate=None):
 
         paste_mode = to_cli_filter(paste_mode)
-        ignore_case = to_cli_filter(ignore_case)
+#        ignore_case = to_cli_filter(ignore_case)
         mouse_support = to_cli_filter(mouse_support)
 
         assert layout is None or isinstance(layout, Container)
@@ -107,7 +109,7 @@ class Application(object):
         assert isinstance(use_alternate_screen, bool)
         assert get_title is None or callable(get_title)
         assert isinstance(paste_mode, CLIFilter)
-        assert isinstance(ignore_case, CLIFilter)
+#        assert isinstance(ignore_case, CLIFilter)
         assert isinstance(editing_mode, six.string_types)
         assert on_input_timeout is None or callable(on_input_timeout)
         assert style is None or isinstance(style, Style)
@@ -159,7 +161,7 @@ class Application(object):
         self.get_title = get_title
 
         self.paste_mode = paste_mode
-        self.ignore_case = ignore_case
+#        self.ignore_case = ignore_case
         self.editing_mode = editing_mode
 
         def dummy_handler(cli):

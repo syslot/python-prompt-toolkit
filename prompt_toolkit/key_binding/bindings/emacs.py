@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
-from prompt_toolkit.filters import Always, Condition, EmacsMode, to_cli_filter, HasSelection, EmacsInsertMode, HasFocus
+from prompt_toolkit.filters import Always, Condition, EmacsMode, to_cli_filter, HasSelection, EmacsInsertMode#, HasFocus
 from prompt_toolkit.completion import CompleteEvent
 
 from .utils import create_handle_decorator
@@ -17,6 +17,8 @@ __all__ = (
     'load_emacs_system_bindings',
     'load_extra_emacs_page_navigation_bindings',
 )
+
+def HasFocus(*_): return Condition(lambda cli: False)  # XXX: remove
 
 
 def load_emacs_bindings(registry, filter=Always()):
@@ -514,16 +516,11 @@ def load_emacs_system_bindings(registry, filter=None):
         event.cli.pop_focus()
 
 
-def load_emacs_search_bindings(registry, get_search_state=None, filter=None):
+def load_emacs_search_bindings(registry, filter=None):
     filter = to_cli_filter(filter)
 
     handle = create_handle_decorator(registry, filter & EmacsMode())
     has_focus = HasFocus(SEARCH_BUFFER)
-
-    assert get_search_state is None or callable(get_search_state)
-
-    if not get_search_state:
-        def get_search_state(cli): return cli.search_state
 
     @handle(Keys.ControlG, filter=has_focus)
     @handle(Keys.ControlC, filter=has_focus)
@@ -563,13 +560,25 @@ def load_emacs_search_bindings(registry, get_search_state=None, filter=None):
 
     @handle(Keys.ControlR, filter= ~has_focus)
     def _(event):
-        get_search_state(event.cli).direction = IncrementalSearchDirection.BACKWARD
-        event.cli.push_focus(SEARCH_BUFFER)
+#        get_search_state(event.cli).direction = IncrementalSearchDirection.BACKWARD
+
+        buffer_control = event.cli.focus_obj.get_buffer_control(event.cli)
+
+        if buffer_control is not None and buffer_control.is_searchable(event.cli):
+            buffer_control.search_state.direction = IncrementalSearchDirection.BACKWARD
+            buffer_control.is_searching = True
+
+#        event.cli.push_focus(SEARCH_BUFFER)
 
     @handle(Keys.ControlS, filter= ~has_focus)
     def _(event):
-        get_search_state(event.cli).direction = IncrementalSearchDirection.FORWARD
-        event.cli.push_focus(SEARCH_BUFFER)
+#        get_search_state(event.cli).direction = IncrementalSearchDirection.FORWARD
+#        event.cli.push_focus(SEARCH_BUFFER)
+        buffer_control = event.cli.focus_obj.get_buffer_control(event.cli)
+
+        if buffer_control.is_searchable(event.cli):
+            buffer_control.search_state.direction = IncrementalSearchDirection.FORWARD
+            buffer_control.is_searching = True
 
     def incremental_search(cli, direction, count=1):
         " Apply search, but keep search buffer focussed. "

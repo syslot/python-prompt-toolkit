@@ -24,7 +24,8 @@ from __future__ import unicode_literals
 from .buffer import Buffer, AcceptAction
 from .document import Document
 from .enums import DEFAULT_BUFFER, SEARCH_BUFFER, EditingMode
-from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
+#from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
+from .filters import IsDone, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
 from .history import InMemoryHistory
 from .interface import CommandLineInterface, Application, AbortAction
 from .key_binding.manager import KeyBindingManager

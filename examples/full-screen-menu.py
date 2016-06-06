@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.keys import Keys
@@ -16,19 +15,33 @@ from prompt_toolkit.layout.screen import Char
 from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict
+from prompt_toolkit.search_state import SearchState
+
+
+search_buffer = Buffer()
 
 default_buffer = Buffer()
 result_buffer = Buffer()
 
-w1 = Window(content=BufferControl(default_buffer))
-w2 = Window(content=BufferControl(result_buffer))
+search_state = SearchState(search_buffer, ignore_case=False)
 
-layout = VSplit([
-    w1,
-    Window(width=D.exact(1),
-           content=FillControl('|', token=Token.Line)),
-    w2,
+w1 = Window(content=BufferControl(default_buffer, search_state=search_state))
+w2 = Window(content=BufferControl(result_buffer, search_state=search_state))
+w3 = Window(content=BufferControl(search_buffer), height=D.exact(1))
+
+#bc -> search -> 
+
+
+layout = HSplit([
+    VSplit([
+        w1,
+        Window(width=D.exact(1),
+               content=FillControl('|', token=Token.Line)),
+        w2,
+    ]),
+    w3,
 ])
+
 
 def get_menu_tokens(cli):
     return [
@@ -90,7 +103,7 @@ layout = FloatContainer(
     ]
 )
 
-manager = KeyBindingManager()  # Start with the `KeyBindingManager`.
+manager = KeyBindingManager(enable_search=True)  # Start with the `KeyBindingManager`.
 
 
 @manager.registry.add_binding(Keys.ControlC, eager=True)
@@ -101,21 +114,13 @@ def _(event):
 @manager.registry.add_binding(Keys.ControlW, eager=True)
 def _(event):
     " Change focus. "
-    if event.cli.focussed_container == w1:
-        event.cli.focussed_container = w2
+#    if cli.focus_label == 'w1':
+#        cli.focus('w2')
+
+    if w1.is_focussed(event.cli):
+        w2.focus(event.cli)
     else:
-        event.cli.focussed_container = w1
-
-#buffers={
-#    DEFAULT_BUFFER: Buffer(is_multiline=True),
-#    'RESULT': Buffer(is_multiline=True),
-#}
-
-#def default_buffer_changed(cli):
-#    buffers['RESULT'].text = buffers[DEFAULT_BUFFER].text[::-1]
-#
-#
-#buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
+        w1.focus(event.cli)
 
 style = {
         Token.MenuBar: 'bg:#0000ff #ffff00',
@@ -127,7 +132,6 @@ style = {
 
 application = Application(
     layout=layout,
-#    buffers=buffers,
     key_bindings_registry=manager.registry,
     style=style_from_dict(style),
 
@@ -143,7 +147,6 @@ application = Application(
 #    -------------------
 
 def run():
-
     eventloop = create_eventloop()
 
     try:
@@ -249,6 +252,59 @@ then that widget is focussed.
 
 
 Use 'leave mark' to mark menu positions. Floats can then be attached to such a 'mark'.
+
+
+
+
+
+
+class Focus(object):
+    " The object that has the focus. "
+    def key_bindings(self, cli):
+        " Key bindings that are relevant for the currently focussed object. "
+    def get_buffer(self, cli):
+        " Buffer, if this object contains a buffer. "
+    def is_modal(self, cli):
+        return False  # Focus can't be stolen.
+
+    def get_search_focus(self, cli):
+        " If the user wants to enter search mode, this object should be focussed. "
+    def get_system_focus(self, cli):
+        " Entering system mode. "
+
+
+focus_object = control1.focus_obj
+focus_object.key_bindings
+
+
+
+b = Buffer()  # Main buffer.
+s = Buffer()  # Search buffer.
+
+VSplit([
+    BufferControl(buffer=b, search_buffer=s),
+    BufferControl(buffer=s)
+])
+
+
+Buffer(label=SEARCH_BUFFER)
+
+#BufferControl:   is_searching=True    # When currently searching.
+
+
+class BufferControl:
+    def get_search_focus(self):
+        if find_buffer_control_for_buffer(self.search_buffer):
+            return 
+        elif SearchProcessor in self.processors:
+            return self.processors[SearchProcessor].get_focus()
+
+
+
+
+
+
+
 
 """
 

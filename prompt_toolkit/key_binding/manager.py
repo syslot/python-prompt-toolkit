@@ -42,7 +42,6 @@ class KeyBindingManager(object):
     """
     def __init__(self, registry=None,
                  enable_vi_mode=None,  # (`enable_vi_mode` is deprecated.)
-                 get_search_state=None,
                  enable_abort_and_exit_bindings=False,
                  enable_system_bindings=False, enable_search=False,
                  enable_open_in_editor=False, enable_extra_page_navigation=False,
@@ -50,7 +49,6 @@ class KeyBindingManager(object):
                  enable_all=True):
 
         assert registry is None or isinstance(registry, Registry)
-        assert get_search_state is None or callable(get_search_state)
 
         # Create registry.
         self.registry = registry or Registry()
@@ -82,8 +80,7 @@ class KeyBindingManager(object):
 
         load_emacs_search_bindings(
             self.registry,
-            filter=enable_search & enable_all,
-            get_search_state=get_search_state)
+            filter=enable_search & enable_all)
 
         load_emacs_system_bindings(
             self.registry, enable_system_bindings & enable_all)
@@ -95,8 +92,7 @@ class KeyBindingManager(object):
         # Load Vi bindings.
         load_vi_bindings(
             self.registry, enable_visual_key=~enable_open_in_editor,
-            filter=enable_all,
-            get_search_state=get_search_state)
+            filter=enable_all)
 
         load_vi_open_in_editor_bindings(
             self.registry,
@@ -104,8 +100,7 @@ class KeyBindingManager(object):
 
         load_vi_search_bindings(
             self.registry,
-            filter=enable_search & enable_all,
-            get_search_state=get_search_state)
+            filter=enable_search & enable_all)
 
         load_vi_system_bindings(
             self.registry,

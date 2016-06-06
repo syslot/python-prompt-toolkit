@@ -11,7 +11,6 @@ from .document import Document
 from .enums import IncrementalSearchDirection
 from .filters import to_simple_filter
 from .history import History, InMemoryHistory
-from .search_state import SearchState
 from .selection import SelectionType, SelectionState
 from .utils import Event
 from .cache import FastDictCache
@@ -990,6 +989,7 @@ class Buffer(object):
         Execute search. Return (working_index, cursor_position) tuple when this
         search is applied. Returns `None` when this text cannot be found.
         """
+        from .search_state import SearchState
         assert isinstance(search_state, SearchState)
         assert isinstance(count, int) and count > 0
 

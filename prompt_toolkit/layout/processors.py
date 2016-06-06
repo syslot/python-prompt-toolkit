@@ -60,19 +60,24 @@ class Processor(with_metaclass(ABCMeta, object)):
         """
         return Transformation(tokens)
 
-    def has_focus(self, cli):
+    def get_focus_obj(self, cli):
         """
-        Processors can override the focus.
-        (Used for the reverse-i-search prefix in DefaultPrompt.)
+        Return a `Focus` object if this processor can require the focus.
         """
-        return False
 
-    def get_buffer(self, cli):
-        """
-        When `has_focus` returns True, this is supposed to return the `Buffer`
-        that is displayed.
-        """
-        return None
+#    def has_focus(self, cli):
+#        """
+#        Processors can override the focus.
+#        (Used for the reverse-i-search prefix in DefaultPrompt.)
+#        """
+#        return False
+#
+#    def get_buffer(self, cli):
+#        """
+#        When `has_focus` returns True, this is supposed to return the `Buffer`
+#        that is displayed.
+#        """
+#        return None
 
 
 

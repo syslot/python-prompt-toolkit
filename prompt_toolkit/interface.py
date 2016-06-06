@@ -33,6 +33,7 @@ from .output import Output
 from .renderer import Renderer, print_tokens
 from .search_state import SearchState
 from .utils import Event
+from .layout.focus import Focus
 
 # Following import is required for backwards compatibility.
 from .buffer import AcceptAction
@@ -106,13 +107,16 @@ class CommandLineInterface(object):
         #: '0' means: don't postpone. '.5' means: try to draw at least twice a second.
         self.max_render_postpone_time = 0  # E.g. .5
 
-        #: The container object that has the focus.
-        self.focussed_container = None
+        #: The object that represents the focus.
+        self.focus_obj = None
 
         for container in self.layout.walk(self):
-            if container.is_focussable(self):
-                self.focussed_container = container
-                break
+            f = container.get_focus_obj(self)
+            assert f is None or isinstance(f, Focus)
+
+            if f is not None and self.focus_obj is None:
+                self.focus_obj = f
+            # (Don't break yet, so we can typecheck all Focus objects.)
 
         # Invalidate flag. When 'True', a repaint has been scheduled.
         self._invalidated = False
@@ -232,8 +236,8 @@ class CommandLineInterface(object):
         has the focus. In this case, it's really not practical to check for
         `None` values or catch exceptions every time.)
         """
-        if self.focussed_container:
-            result = self.focussed_container.get_focussed_buffer(self)
+        if self.focus_obj:
+            result = self.focus_obj.get_focussed_buffer(self)
             if result is not None:
                 return result
 
@@ -306,7 +310,7 @@ class CommandLineInterface(object):
 
         # Search new search state. (Does also remember what has to be
         # highlighted.)
-        self.search_state = SearchState(ignore_case=Condition(lambda: self.is_ignoring_case))
+#        self.search_state = SearchState(ignore_case=Condition(lambda: self.is_ignoring_case))
 
         # Trigger reset event.
         self.on_reset.fire()
@@ -317,9 +321,11 @@ class CommandLineInterface(object):
         return self.application.paste_mode(self)
 
     @property
-    def is_ignoring_case(self):
-        """ True when we currently ignore casing. """
-        return self.application.ignore_case(self)
+    def is_ignoring_case(self):  # XXX: Depraceted!
+#        """ True when we currently ignore casing. """
+        return False
+
+#        return self.application.ignore_case(self)
 
     def invalidate(self):
         """

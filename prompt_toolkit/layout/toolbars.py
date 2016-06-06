@@ -11,7 +11,8 @@ from .containers import Window, ConditionalContainer
 from .screen import Char
 from .utils import token_list_len
 from prompt_toolkit.enums import SEARCH_BUFFER, SYSTEM_BUFFER
-from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, HasSearch, Always, IsDone
+#from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, HasSearch, Always, IsDone
+from prompt_toolkit.filters import HasArg, HasCompletions, HasValidationError, HasSearch, Always, IsDone
 from prompt_toolkit.token import Token
 
 __all__ = (
