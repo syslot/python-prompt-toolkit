@@ -1,7 +1,8 @@
 from __future__ import unicode_literals
 
-from prompt_toolkit.utils import get_cwidth
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.token import Token
+from prompt_toolkit.utils import get_cwidth
 
 __all__ = (
     'token_list_len',
@@ -9,7 +10,7 @@ __all__ = (
     'token_list_to_text',
     'explode_tokens',
     'split_lines',
-    'find_window_for_buffer_name',
+    'find_window_for_buffer',
 )
 
 
@@ -161,18 +162,26 @@ def explode_tokens(tokenlist):
 
 
 def find_window_for_buffer_name(cli, buffer_name):
+    raise NotImplemented
+
+def find_window_for_buffer(cli, buffer):
     """
     Look for a :class:`~prompt_toolkit.layout.containers.Window` in the Layout
     that contains the :class:`~prompt_toolkit.layout.controls.BufferControl`
     for the given buffer and return it. If no such Window is found, return None.
+
+    :param buffer: `Buffer` object.
     """
-    from prompt_toolkit.interface import CommandLineInterface
-    assert isinstance(cli, CommandLineInterface)
+    raise NotImplemented
 
-    from .containers import Window
-    from .controls import BufferControl
-
-    for l in cli.layout.walk(cli):
-        if isinstance(l, Window) and isinstance(l.content, BufferControl):
-            if l.content.buffer_name == buffer_name:
-                return l
+#    from prompt_toolkit.interface import CommandLineInterface
+#    assert isinstance(cli, CommandLineInterface)
+#    assert isinstance(buffer, Buffer)
+#
+#    from .containers import Window
+#    from .controls import BufferControl
+#
+#    for l in cli.layout.walk(cli):
+#        if isinstance(l, Window) and isinstance(l.content, BufferControl):
+#            if l.content.displays_buffer(buffer):
+#                return l

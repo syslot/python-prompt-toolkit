@@ -10,9 +10,9 @@ from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 from six.moves import range
 
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.cache import SimpleCache
 from prompt_toolkit.document import Document
-from prompt_toolkit.enums import SEARCH_BUFFER
 from prompt_toolkit.filters import to_cli_filter
 from prompt_toolkit.layout.utils import token_list_to_text
 from prompt_toolkit.reactive import Integer
@@ -60,25 +60,13 @@ class Processor(with_metaclass(ABCMeta, object)):
         """
         return Transformation(tokens)
 
-    def get_focus_obj(self, cli):
+    def displays_buffer(self):
         """
-        Return a `Focus` object if this processor can require the focus.
+        Return the buffer that is displayed in this processor, e.g. the search buffer,
+        if this processor inserts the content of a buffer somewhere.
+        Otherwise, return `None`.
         """
-
-#    def has_focus(self, cli):
-#        """
-#        Processors can override the focus.
-#        (Used for the reverse-i-search prefix in DefaultPrompt.)
-#        """
-#        return False
-#
-#    def get_buffer(self, cli):
-#        """
-#        When `has_focus` returns True, this is supposed to return the `Buffer`
-#        that is displayed.
-#        """
-#        return None
-
+        return None
 
 
 class Transformation(object):
@@ -110,10 +98,13 @@ class HighlightSearchProcessor(Processor):
         the search text in real time while the user is typing, instead of the
         last active search state.
     """
-    def __init__(self, preview_search=False, search_buffer_name=SEARCH_BUFFER,
-                 get_search_state=None):
+
+            # XXX: `apply_transformation` should also receive the BufferControl
+            #       and the search buffer can be taken from there.
+    def __init__(self, buffer, preview_search=False, get_search_state=None):
+        assert isinstance(buffer, Buffer)
+
         self.preview_search = to_cli_filter(preview_search)
-        self.search_buffer_name = search_buffer_name
         self.get_search_state = get_search_state or (lambda cli: cli.search_state)
 
     def _get_search_text(self, cli):
@@ -121,8 +112,8 @@ class HighlightSearchProcessor(Processor):
         The text we are searching for.
         """
         # When the search buffer has focus, take that text.
-        if self.preview_search(cli) and cli.buffers[self.search_buffer_name].text:
-            return cli.buffers[self.search_buffer_name].text
+        if self.preview_search(cli) and self.buffer.text:
+            return self.buffer.text
         # Otherwise, take the text of the last active search.
         else:
             return self.get_search_state(cli).text

@@ -1365,8 +1365,8 @@ def load_vi_bindings(registry, enable_visual_key=Always(),
         """
         Like g0, but half a screenwidth to the right. (Or as much as possible.)
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
-        buff = event.current_buffer
+        w = event.cli.current_window  ### find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        buff = event.current_buffer  ### Use w.buffer
 
         if w and w.render_info:
             width = w.render_info.window_width

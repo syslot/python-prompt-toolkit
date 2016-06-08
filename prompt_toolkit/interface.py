@@ -29,11 +29,12 @@ from .key_binding.input_processor import KeyPress
 from .key_binding.registry import Registry
 from .key_binding.vi_state import ViState
 from .keys import Keys
+from .layout.containers import Window
+from .layout.focus import Focus
 from .output import Output
 from .renderer import Renderer, print_tokens
 from .search_state import SearchState
 from .utils import Event
-from .layout.focus import Focus
 
 # Following import is required for backwards compatibility.
 from .buffer import AcceptAction
@@ -125,7 +126,7 @@ class CommandLineInterface(object):
         self.input_processor = InputProcessor(
             application.key_bindings_registry, weakref.ref(self))
 
-        self._async_completers = {}  # Map buffer name to completer function.
+        self._async_completers = {}  # Map buffer to completer function.
 
         # Pointer to sub CLI. (In chain of CLI instances.)
         self._sub_cli = None  # None or other CommandLineInterface instance.
@@ -170,7 +171,7 @@ class CommandLineInterface(object):
         # Create asynchronous completer / auto suggestion.
         auto_suggest_function = self._create_auto_suggest_function(buffer)
         completer_function = self._create_async_completer(buffer)
-        self._async_completers[name] = completer_function
+        self._async_completers[buffer] = completer_function
 
         # Complete/suggest on text insert.
         def create_on_insert_handler():
@@ -204,15 +205,17 @@ class CommandLineInterface(object):
 
         buffer.on_text_changed += buffer_changed
 
-    def start_completion(self, buffer_name=None, select_first=False,
+    def start_completion(self, buffer=None, select_first=False,
                          select_last=False, insert_common_part=False,
                          complete_event=None):
         """
         Start asynchronous autocompletion of this buffer.
         (This will do nothing if a previous completion was still in progress.)
         """
-        buffer_name = buffer_name or self.current_buffer_name
-        completer = self._async_completers.get(buffer_name)
+        assert buffer is None or isinstance(buffer, Buffer)
+
+        buffer = buffer or self.current_buffer
+        completer = self._async_completers.get(buffer)
 
         if completer:
             completer(select_first=select_first,
@@ -222,10 +225,20 @@ class CommandLineInterface(object):
 
 #    @property
 #    def current_buffer_name(self):
-#        """
-#        The name of the current  :class:`.Buffer`. (Or `None`.)
-#        """
 #        return self.buffers.current_name(self)
+
+    @property
+    def current_window(self):
+        """
+        Return the `Window` object that contains the `BufferControl` which is
+        currently focussed. (Or `None` if none was focussed.)
+        """
+        if self.focus_obj:
+            ctrl = self.focus_obj.get_buffer_control(self)
+            if ctrl is not None:
+                for l in self.layout.walk(self):
+                    if isinstance(l, Window) and isinstance(l.content, ctrl):
+                        return l
 
     @property
     def current_buffer(self):
@@ -243,8 +256,6 @@ class CommandLineInterface(object):
 
         # Return dummy buffer.
         return Buffer()
-
-#        return self.buffers.current(self)
 
 #    def focus(self, buffer_name):
 #        """
@@ -282,7 +293,8 @@ class CommandLineInterface(object):
         """
         True when we are searching.
         """
-        return self.current_buffer_name == SEARCH_BUFFER
+        ctrl = self.focus_obj.get_buffer_control()
+        return ctrl is not None and ctrl.is_searching
 
     def reset(self, reset_current_buffer=False):
         """

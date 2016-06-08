@@ -20,8 +20,8 @@ from prompt_toolkit.search_state import SearchState
 
 search_buffer = Buffer()
 
-default_buffer = Buffer()
-result_buffer = Buffer()
+default_buffer = Buffer(is_multiline=True)
+result_buffer = Buffer(is_multiline=True)
 
 search_state = SearchState(search_buffer, ignore_case=False)
 
