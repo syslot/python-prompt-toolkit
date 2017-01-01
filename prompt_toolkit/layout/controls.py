@@ -459,7 +459,7 @@ class BufferControl(UIControl):
                  lexer=None,
                  preview_search=False,
 #                 search_buffer_name=SEARCH_BUFFER,
-                 search_buffer=None,
+                 search_buffer_control=None,
                  get_search_state=None,
                  menu_position=None,
                  default_char=None,
@@ -468,7 +468,7 @@ class BufferControl(UIControl):
         assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
         assert menu_position is None or callable(menu_position)
         assert lexer is None or isinstance(lexer, Lexer)
-        assert search_buffer is None or isinstance(search_buffer, Buffer)
+        assert search_buffer_control is None or isinstance(search_buffer_control, BufferControl)
         assert get_search_state is None or callable(get_search_state)
         assert default_char is None or isinstance(default_char, Char)
 
@@ -481,7 +481,7 @@ class BufferControl(UIControl):
         self.menu_position = menu_position
         self.lexer = lexer or SimpleLexer()
         self.default_char = default_char or Char(token=Token.Transparent)
-        self.search_buffer = search_buffer
+        self.search_buffer_control = search_buffer_control
 
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
@@ -492,6 +492,11 @@ class BufferControl(UIControl):
         self._xy_to_cursor_position = None
         self._last_click_timestamp = None
         self._last_get_processed_line = None
+
+    @property
+    def search_buffer(self):
+        if self.search_buffer_control is not None:
+            return self.search_buffer_control.buffer
 
 #    def _buffer(self, cli):
 #        """
@@ -583,7 +588,7 @@ class BufferControl(UIControl):
             # Apply each processor.
             for p in self.input_processors:
                 transformation = p.apply_transformation(
-                    cli, document, lineno, source_to_display, tokens)
+                    cli, self, document, lineno, source_to_display, tokens)
                 tokens = transformation.tokens
 
                 if cursor_column:

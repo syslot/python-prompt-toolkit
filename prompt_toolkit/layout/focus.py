@@ -49,7 +49,7 @@ class Focus(object):
         except IndexError:
             return self._stack[-1]
 
-    def focus_previous(self):
+    def focus_previous(self):  # XXX: rename to 'pop()'
         """
         Give the focus to the previously focussed control.
         """

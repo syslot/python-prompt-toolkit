@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 """
 """
@@ -19,6 +18,7 @@ from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict, style_from_pygments
 from prompt_toolkit.search_state import SearchState
+from prompt_toolkit.layout.processors import HighlightSearchProcessor
 
 from pygments.lexers import HtmlLexer, CssLexer
 from pygments.styles import get_style_by_name
@@ -60,9 +60,13 @@ c2 = CustomControl('o')
 search = Buffer()
 b = Buffer(is_multiline=True)
 
-c3 = BufferControl(buffer=b, lexer=PygmentsLexer(HtmlLexer), search_buffer=search)
-c4 = BufferControl(buffer=b, lexer=PygmentsLexer(CssLexer), search_buffer=search)
+input_processors = [
+    HighlightSearchProcessor(preview_search=True),
+]
+
 c5 = BufferControl(buffer=search)
+c3 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(HtmlLexer), search_buffer_control=c5)
+c4 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(CssLexer), search_buffer_control=c5)
 
 layout = VSplit([
     Window(content=c1),
@@ -88,23 +92,18 @@ def _(event):
     controls = [c1, c2, c3]
     new_index = (controls.index(cli.focussed_control) + 1) % len(controls)
     cli.focussed_control = controls[new_index]
-    return
 
-    if cli.focussed_control == c1:
-        cli.focussed_control = c2
-    else:
-        cli.focussed_control = c1
 
 style = {
     Token.Focussed: 'bg:#0000ff #ffff00',
-    Token: 'bg:#000000 #ffffff',
+    #Token: 'bg:#000000 #ffffff',
 }
 
 
 application = Application(
     layout=layout,
     key_bindings_registry=registry,
-    style=style_from_pygments(get_style_by_name('friendly'), style),
+    style=style_from_pygments(get_style_by_name('default'), style),
 
     # Let's add mouse support!
     mouse_support=True,

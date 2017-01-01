@@ -47,11 +47,12 @@ class Processor(with_metaclass(ABCMeta, object)):
     :class:`~prompt_toolkit.layout.controls.BufferControl`.
     """
     @abstractmethod
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         """
         Apply transformation.  Returns a :class:`.Transformation` instance.
 
         :param cli: :class:`.CommandLineInterface` instance.
+        :param control: :class:`.BufferControl` instance.
         :param lineno: The number of the line to which we apply the processor.
         :param source_to_display: A function that returns the position in the
             `tokens` for any position in the source string. (This takes
@@ -98,25 +99,25 @@ class HighlightSearchProcessor(Processor):
         the search text in real time while the user is typing, instead of the
         last active search state.
     """
-    def __init__(self, preview_search=False, search_buffer_name=SEARCH_BUFFER,
-                 get_search_state=None):
+    def __init__(self, preview_search=False, get_search_state=None):
         self.preview_search = to_cli_filter(preview_search)
-        self.search_buffer_name = search_buffer_name
         self.get_search_state = get_search_state or (lambda cli: cli.search_state)
 
-    def _get_search_text(self, cli):
+    def _get_search_text(self, cli, buffer_control):
         """
         The text we are searching for.
         """
         # When the search buffer has focus, take that text.
-        if self.preview_search(cli) and cli.buffers[self.search_buffer_name].text:
-            return cli.buffers[self.search_buffer_name].text
-        # Otherwise, take the text of the last active search.
-        else:
-            return self.get_search_state(cli).text
+        if self.preview_search(cli):
+            search_buffer = buffer_control.search_buffer
+            if search_buffer is not None and search_buffer.text:
+                return search_buffer.text
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
-        search_text = self._get_search_text(cli)
+        # Otherwise, take the text of the last active search.
+        return self.get_search_state(cli).text
+
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+        search_text = self._get_search_text(cli, buffer_control)
         searchmatch_current_token = (':', ) + Token.SearchMatch.Current
         searchmatch_token = (':', ) + Token.SearchMatch
 
@@ -153,7 +154,7 @@ class HighlightSelectionProcessor(Processor):
     """
     Processor that highlights the selection in the document.
     """
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         selected_token = (':', ) + Token.SelectedText
 
         # In case of selection, highlight all matches.
@@ -188,7 +189,7 @@ class PasswordProcessor(Processor):
     def __init__(self, char='*'):
         self.char = char
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         tokens = [(token, self.char * len(text)) for token, text in tokens]
         return Transformation(tokens)
 
@@ -241,7 +242,7 @@ class HighlightMatchingBracketProcessor(Processor):
         else:
             return []
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         # Get the highlight positions.
         key = (cli.render_counter, document.text, document.cursor_position)
         positions = self._positions_cache.get(
@@ -271,11 +272,8 @@ class DisplayMultipleCursors(Processor):
     """
     _insert_multiple =  ViInsertMultipleMode()
 
-    def __init__(self, buffer_name):
-        self.buffer_name = buffer_name
-
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
-        buff = cli.buffers[self.buffer_name]
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+        buff = buffer_control.buffer
 
         if self._insert_multiple(cli):
             positions = buff.multiple_cursor_positions
@@ -315,7 +313,7 @@ class BeforeInput(Processor):
         assert callable(get_tokens)
         self.get_tokens = get_tokens
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         if lineno == 0:
             tokens_before = self.get_tokens(cli)
             tokens = tokens_before + tokens
@@ -357,7 +355,7 @@ class AfterInput(Processor):
         assert callable(get_tokens)
         self.get_tokens = get_tokens
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         # Insert tokens after the last line.
         if lineno == document.line_count - 1:
             return Transformation(tokens=tokens + self.get_tokens(cli))
@@ -387,20 +385,13 @@ class AppendAutoSuggestion(Processor):
     :param buffer_name: The name of the buffer from where we should take the
         auto suggestion. If not given, we take the current buffer.
     """
-    def __init__(self, buffer_name=None, token=Token.AutoSuggestion):
-        self.buffer_name = buffer_name
+    def __init__(self, token=Token.AutoSuggestion):
         self.token = token
 
-    def _get_buffer(self, cli):
-        if self.buffer_name:
-            return cli.buffers[self.buffer_name]
-        else:
-            return cli.current_buffer
-
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         # Insert tokens after the last line.
         if lineno == document.line_count - 1:
-            buffer = self._get_buffer(cli)
+            buffer = buffer_control.buffer
 
             if buffer.suggestion and buffer.document.is_cursor_at_the_end:
                 suggestion = buffer.suggestion.text
@@ -433,7 +424,7 @@ class ShowLeadingWhiteSpaceProcessor(Processor):
         self.token = token
         self.get_char = get_char
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         # Walk through all te tokens.
         if tokens and token_list_to_text(tokens).startswith(' '):
             t = (self.token, self.get_char(cli))
@@ -470,7 +461,7 @@ class ShowTrailingWhiteSpaceProcessor(Processor):
         self.get_char = get_char
 
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         if tokens and tokens[-1][1].endswith(' '):
             t = (self.token, self.get_char(cli))
             tokens = explode_tokens(tokens)
@@ -507,7 +498,7 @@ class TabsProcessor(Processor):
         self.tabstop = tabstop
         self.token = token
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         tabstop = int(self.tabstop)
         token = self.token
 
@@ -586,11 +577,11 @@ class ConditionalProcessor(Processor):
         self.processor = processor
         self.filter = to_cli_filter(filter)
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         # Run processor when enabled.
         if self.filter(cli):
             return self.processor.apply_transformation(
-                cli, document, lineno, source_to_display, tokens)
+                cli, buffer_control, document, lineno, source_to_display, tokens)
         else:
             return Transformation(tokens)
 

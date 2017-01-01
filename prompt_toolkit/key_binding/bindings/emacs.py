@@ -354,17 +354,26 @@ def load_emacs_search_bindings(get_search_state=None):
     registry = ConditionalRegistry(Registry(), EmacsMode())
     handle = registry.add_binding
 
+    from prompt_toolkit.layout.controls import BufferControl
+
     @Condition
     def control_is_searchable(cli):
-        return bool(cli.focussed_control.search_link())
+        " When the current UIControl is searchable. "
+        control = cli.focussed_control
+
+        return (isinstance(control, BufferControl) and
+                control.search_buffer_control is not None)
 
     @Condition
     def is_searching(cli):
+        " When we are searching. "
+        control = cli.focus.focussed_control
         prev = cli.focus.previous_focussed_control
-        link = prev.search_link()
-        return link and link.ui_control == cli.focussed_control
 
-#    has_focus = HasFocus(SEARCH_BUFFER)
+        return (isinstance(prev, BufferControl) and
+                isinstance(control, BufferControl) and
+                prev.search_buffer_control is not None and
+                prev.search_buffer_control == control)
 
     assert get_search_state is None or callable(get_search_state)
 
@@ -382,57 +391,61 @@ def load_emacs_search_bindings(get_search_state=None):
         event.cli.current_buffer.reset()
         event.cli.focus.focus_previous()
 
-#        search_buffer = event.cli.buffers[SEARCH_BUFFER]
-#        search_buffer.reset()
-#        event.cli.pop_focus()
-
     @handle(Keys.ControlJ, filter=is_searching)
     def _(event):
         """
         When enter pressed in isearch, quit isearch mode. (Multiline
         isearch would be too complicated.)
         """
-        input_buffer = event.cli.buffers.previous(event.cli)
-        search_buffer = event.cli.buffers[SEARCH_BUFFER]
+        search_control = event.cli.focus.focussed_control
+        prev_control = event.cli.focus.previous_focussed_control
 
         # Update search state.
-        if search_buffer.text:
-            get_search_state(event.cli).text = search_buffer.text
+        if search_control.buffer.text:
+            get_search_state(event.cli).text = search_control.buffer.text
 
         # Apply search.
-        input_buffer.apply_search(get_search_state(event.cli), include_current_position=True)
+        prev_control.buffer.apply_search(get_search_state(event.cli), include_current_position=True)
 
         # Add query to history of search line.
-        search_buffer.append_to_history()
-        search_buffer.reset()
+        search_control.buffer.append_to_history()
+        search_control.buffer.reset()
 
         # Focus previous document again.
-        event.cli.pop_focus()
+        event.cli.focus.focus_previous()
 
     @handle(Keys.ControlR, filter= ~is_searching&control_is_searchable)
     def _(event):
+        control = event.cli.focus.focussed_control
+
         get_search_state(event.cli).direction = IncrementalSearchDirection.BACKWARD
-        event.cli.push_focus(SEARCH_BUFFER)
+        event.cli.focussed_control = control.search_buffer_control
 
     @handle(Keys.ControlS, filter= ~is_searching&control_is_searchable)
     def _(event):
+        control = event.cli.focus.focussed_control
+
         get_search_state(event.cli).direction = IncrementalSearchDirection.FORWARD
-        event.cli.push_focus(SEARCH_BUFFER)
+        event.cli.focussed_control = control.search_buffer_control
 
     def incremental_search(cli, direction, count=1):
         " Apply search, but keep search buffer focussed. "
+        assert is_searching(cli)
+
+        search_control = cli.focus.focussed_control
+        prev_control = cli.focus.previous_focussed_control
+
         # Update search_state.
         search_state = get_search_state(cli)
         direction_changed = search_state.direction != direction
 
-        search_state.text = cli.buffers[SEARCH_BUFFER].text
+        search_state.text = search_control.buffer.text
         search_state.direction = direction
 
         # Apply search to current buffer.
         if not direction_changed:
-            input_buffer = cli.buffers.previous(cli)
-            input_buffer.apply_search(search_state,
-                                      include_current_position=False, count=count)
+            prev_control.buffer.apply_search(
+                search_state, include_current_position=False, count=count)
 
     @handle(Keys.ControlR, filter=is_searching)
     @handle(Keys.Up, filter=is_searching)

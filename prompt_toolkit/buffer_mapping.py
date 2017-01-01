@@ -25,6 +25,7 @@ class BufferMapping(dict):
     """
     def __init__(self, buffers=None, initial=DEFAULT_BUFFER):
         assert buffers is None or isinstance(buffers, dict)
+        print('TOOD: Remove BufferMapping')
 
         # Start with an empty dict.
         super(BufferMapping, self).__init__()
