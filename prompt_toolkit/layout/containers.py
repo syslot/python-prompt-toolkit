@@ -76,7 +76,7 @@ class Container(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
-    def walk(self, cli):
+    def walk(self):
         """
         Walk through all the layout nodes (and their children) and yield them.
         """
@@ -209,11 +209,11 @@ class HSplit(Container):
 
         return sizes
 
-    def walk(self, cli):
+    def walk(self):
         """ Walk through children. """
         yield self
         for c in self.children:
-            for i in c.walk(cli):
+            for i in c.walk():
                 yield i
 
 
@@ -348,11 +348,11 @@ class VSplit(Container):
             c.write_to_screen(cli, screen, mouse_handlers, WritePosition(xpos, ypos, s, height))
             xpos += s
 
-    def walk(self, cli):
+    def walk(self):
         """ Walk through children. """
         yield self
         for c in self.children:
-            for i in c.walk(cli):
+            for i in c.walk():
                 yield i
 
 
@@ -530,15 +530,15 @@ class FloatContainer(Container):
 
         return True
 
-    def walk(self, cli):
+    def walk(self):
         """ Walk through children. """
         yield self
 
-        for i in self.content.walk(cli):
+        for i in self.content.walk():
             yield i
 
         for f in self.floats:
-            for i in f.content.walk(cli):
+            for i in f.content.walk():
                 yield i
 
 
@@ -1081,7 +1081,7 @@ class Window(Container):
             cli, ui_content, screen, write_position,
             sum(left_margin_widths), write_position.width - total_margin_width,
             self.vertical_scroll, self.horizontal_scroll,
-            has_focus=self.content.has_focus(cli),
+#            has_focus=self.content.has_focus(cli),
             wrap_lines=wrap_lines, highlight_lines=True,
             vertical_scroll_2=self.vertical_scroll_2,
             always_hide_cursor=self.always_hide_cursor(cli))
@@ -1185,11 +1185,14 @@ class Window(Container):
 
     def _copy_body(self, cli, ui_content, new_screen, write_position, move_x,
                    width, vertical_scroll=0, horizontal_scroll=0,
-                   has_focus=False, wrap_lines=False, highlight_lines=False,
+#                   has_focus=False, wrap_lines=False, highlight_lines=False,
+                   wrap_lines=False, highlight_lines=False,
                    vertical_scroll_2=0, always_hide_cursor=False):
         """
         Copy the UIContent into the output screen.
         """
+        has_focus = cli.focussed_control == self.content
+
         xpos = write_position.xpos + move_x
         ypos = write_position.ypos
         line_count = ui_content.line_count
@@ -1615,7 +1618,7 @@ class Window(Container):
 
             self.vertical_scroll -= 1
 
-    def walk(self, cli):
+    def walk(self):
         # Only yield self. A window doesn't have children.
         yield self
 
@@ -1657,8 +1660,8 @@ class ConditionalContainer(Container):
         if self.filter(cli):
             return self.content.write_to_screen(cli, screen, mouse_handlers, write_position)
 
-    def walk(self, cli):
-        return self.content.walk(cli)
+    def walk(self):
+        return self.content.walk()
 
 
 # Deprecated alias for 'Container'.

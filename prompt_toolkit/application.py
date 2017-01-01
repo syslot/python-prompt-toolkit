@@ -8,11 +8,12 @@ from .filters import CLIFilter, to_cli_filter
 from .key_binding.bindings.basic import load_basic_bindings
 from .key_binding.bindings.emacs import load_emacs_bindings
 from .key_binding.bindings.vi import load_vi_bindings
-from .key_binding.registry import BaseRegistry
 from .key_binding.defaults import load_key_bindings
+from .key_binding.registry import BaseRegistry
 from .layout import Window
 from .layout.containers import Container
-from .layout.controls import BufferControl
+from .layout.controls import BufferControl, UIControl
+from .layout.focus import Focus
 from .styles import DEFAULT_STYLE, Style
 import six
 
@@ -61,6 +62,7 @@ class Application(object):
     :param reverse_vi_search_direction: Normally, in Vi mode, a '/' searches
         forward and a '?' searches backward. In readline mode, this is usually
         reversed.
+    :param focussed_control: The `UIControl` object that gets the initially the focus.
 
     Filters:
 
@@ -95,6 +97,7 @@ class Application(object):
                  paste_mode=False, ignore_case=False, editing_mode=EditingMode.EMACS,
                  erase_when_done=False,
                  reverse_vi_search_direction=False,
+                 focussed_control=None,
 
                  on_input_timeout=None, on_start=None, on_stop=None,
                  on_reset=None, on_initialize=None, on_buffer_changed=None,
@@ -120,6 +123,7 @@ class Application(object):
         assert on_input_timeout is None or callable(on_input_timeout)
         assert style is None or isinstance(style, Style)
         assert isinstance(erase_when_done, bool)
+        assert focussed_control is None or isinstance(focussed_control, UIControl)
 
         assert on_start is None or callable(on_start)
         assert on_stop is None or callable(on_stop)
@@ -169,6 +173,8 @@ class Application(object):
         self.editing_mode = editing_mode
         self.erase_when_done = erase_when_done
         self.reverse_vi_search_direction = reverse_vi_search_direction
+
+        self.focus = Focus(layout, focussed_control)
 
         def dummy_handler(cli):
             " Dummy event handler. "

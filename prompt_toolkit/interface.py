@@ -19,6 +19,7 @@ from subprocess import Popen
 from .application import Application, AbortAction
 from .buffer import Buffer
 from .buffer_mapping import BufferMapping
+from .cache import SimpleCache
 from .completion import CompleteEvent, get_common_complete_suffix
 from .enums import SEARCH_BUFFER
 from .eventloop.base import EventLoop
@@ -27,9 +28,10 @@ from .filters import Condition
 from .input import StdinInput, Input
 from .key_binding.input_processor import InputProcessor
 from .key_binding.input_processor import KeyPress
-from .key_binding.registry import Registry
+from .key_binding.registry import Registry, BaseRegistry, MergedRegistry, ConditionalRegistry
 from .key_binding.vi_state import ViState
 from .keys import Keys
+from .layout.controls import BufferControl
 from .output import Output
 from .renderer import Renderer, print_tokens
 from .search_state import SearchState
@@ -114,7 +116,7 @@ class CommandLineInterface(object):
         self._invalidated = False
 
         #: The `InputProcessor` instance.
-        self.input_processor = InputProcessor(application.key_bindings_registry, weakref.ref(self))
+        self.input_processor = InputProcessor(_DynamicRegistry(self), weakref.ref(self))
 
         self._async_completers = {}  # Map buffer name to completer function.
 
@@ -151,6 +153,20 @@ class CommandLineInterface(object):
     @property
     def pre_run_callables(self):
         return self.application.pre_run_callables
+
+    @property
+    def focus(self):
+        return self.application.focus
+
+    @property
+    def focussed_control(self):
+        " Get the `UIControl` to has the focus. "  # This is a shortcut.
+        return self.application.focus.focussed_control
+
+    @focussed_control.setter
+    def focussed_control(self, ui_control):
+        " Set `UIControl` to receive the focus. "  # This is a shortcut.
+        self.application.focus.focussed_control = ui_control
 
     def add_buffer(self, name, buffer, focus=False):
         """
@@ -215,12 +231,12 @@ class CommandLineInterface(object):
                       insert_common_part=insert_common_part,
                       complete_event=CompleteEvent(completion_requested=True))
 
-    @property
-    def current_buffer_name(self):
-        """
-        The name of the current  :class:`.Buffer`. (Or `None`.)
-        """
-        return self.buffers.current_name(self)
+#    @property
+#    def current_buffer_name(self):
+#        """
+#        The name of the current  :class:`.Buffer`. (Or `None`.)
+#        """
+#        return self.buffers.current_name(self)
 
     @property
     def current_buffer(self):
@@ -231,25 +247,31 @@ class CommandLineInterface(object):
         has the focus. In this case, it's really not practical to check for
         `None` values or catch exceptions every time.)
         """
-        return self.buffers.current(self)
+        ui_control = self.focussed_control
+        if isinstance(ui_control, BufferControl):
+            return ui_control.buffer
+        else:
+            return Buffer()  # Dummy buffer.
 
-    def focus(self, buffer_name):
-        """
-        Focus the buffer with the given name on the focus stack.
-        """
-        self.buffers.focus(self, buffer_name)
+#        return self.buffers.current(self)
 
-    def push_focus(self, buffer_name):
-        """
-        Push to the focus stack.
-        """
-        self.buffers.push_focus(self, buffer_name)
-
-    def pop_focus(self):
-        """
-        Pop from the focus stack.
-        """
-        self.buffers.pop_focus(self)
+#    def focus(self, buffer_name):
+#        """
+#        Focus the buffer with the given name on the focus stack.
+#        """
+#        self.buffers.focus(self, buffer_name)
+#
+#    def push_focus(self, buffer_name):
+#        """
+#        Push to the focus stack.
+#        """
+#        self.buffers.push_focus(self, buffer_name)
+#
+#    def pop_focus(self):
+#        """
+#        Pop from the focus stack.
+#        """
+#        self.buffers.pop_focus(self)
 
     @property
     def terminal_title(self):
@@ -1183,3 +1205,45 @@ class _SubApplicationEventLoop(EventLoop):
 
     def remove_reader(self, fd):
         self.cli.eventloop.remove_reader(fd)
+
+
+class _DynamicRegistry(BaseRegistry):
+    """
+    The `Registry` of key bindings for a `CommandLineInterface`.
+    This merges the global key bindings with the one of the current user
+    control.
+    """
+    def __init__(self, cli):
+        self.cli = cli
+        self._cache = SimpleCache()
+
+    def _create_registry(self, ui_control):
+        """
+        Create a `Registry` object that merges the `Registry` from the
+        `UIControl` with the global registry.
+        """
+        ui_key_bindings = ui_control.get_key_bindings(self.cli)
+
+        if ui_key_bindings is None:
+            return self.cli.application.key_bindings_registry
+        else:
+            @Condition
+            def inherit_global_key_bindings(cli):
+                return ui_key_bindings.inherit_global_bindings
+
+            return MergedRegistry([
+                ConditionalRegistry(self.cli.application.key_bindings_registry,
+                                    filter=ui_key_bindings.inherit_global_bindings),
+                ui_key_bindings.registry,
+            ])
+
+    @property
+    def _registry(self):
+        ui_control = self.cli.focussed_control
+        return self._cache.get(ui_control, lambda: self._create_registry(ui_control))
+
+    def get_bindings_for_keys(self, keys):
+        return self._registry.get_bindings_for_keys(keys)
+
+    def get_bindings_starting_with_keys(self, keys):
+        return self._registry.get_bindings_starting_with_keys(keys)

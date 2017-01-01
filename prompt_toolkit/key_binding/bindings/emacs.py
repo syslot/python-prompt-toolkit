@@ -354,27 +354,39 @@ def load_emacs_search_bindings(get_search_state=None):
     registry = ConditionalRegistry(Registry(), EmacsMode())
     handle = registry.add_binding
 
-    has_focus = HasFocus(SEARCH_BUFFER)
+    @Condition
+    def control_is_searchable(cli):
+        return bool(cli.focussed_control.search_link())
+
+    @Condition
+    def is_searching(cli):
+        prev = cli.focus.previous_focussed_control
+        link = prev.search_link()
+        return link and link.ui_control == cli.focussed_control
+
+#    has_focus = HasFocus(SEARCH_BUFFER)
 
     assert get_search_state is None or callable(get_search_state)
 
     if not get_search_state:
         def get_search_state(cli): return cli.search_state
 
-    @handle(Keys.ControlG, filter=has_focus)
-    @handle(Keys.ControlC, filter=has_focus)
+    @handle(Keys.ControlG, filter=is_searching)
+    @handle(Keys.ControlC, filter=is_searching)
     # NOTE: the reason for not also binding Escape to this one, is that we want
     #       Alt+Enter to accept input directly in incremental search mode.
     def _(event):
         """
         Abort an incremental search and restore the original line.
         """
-        search_buffer = event.cli.buffers[SEARCH_BUFFER]
+        event.cli.current_buffer.reset()
+        event.cli.focus.focus_previous()
 
-        search_buffer.reset()
-        event.cli.pop_focus()
+#        search_buffer = event.cli.buffers[SEARCH_BUFFER]
+#        search_buffer.reset()
+#        event.cli.pop_focus()
 
-    @handle(Keys.ControlJ, filter=has_focus)
+    @handle(Keys.ControlJ, filter=is_searching)
     def _(event):
         """
         When enter pressed in isearch, quit isearch mode. (Multiline
@@ -397,12 +409,12 @@ def load_emacs_search_bindings(get_search_state=None):
         # Focus previous document again.
         event.cli.pop_focus()
 
-    @handle(Keys.ControlR, filter= ~has_focus)
+    @handle(Keys.ControlR, filter= ~is_searching&control_is_searchable)
     def _(event):
         get_search_state(event.cli).direction = IncrementalSearchDirection.BACKWARD
         event.cli.push_focus(SEARCH_BUFFER)
 
-    @handle(Keys.ControlS, filter= ~has_focus)
+    @handle(Keys.ControlS, filter= ~is_searching&control_is_searchable)
     def _(event):
         get_search_state(event.cli).direction = IncrementalSearchDirection.FORWARD
         event.cli.push_focus(SEARCH_BUFFER)
@@ -422,13 +434,13 @@ def load_emacs_search_bindings(get_search_state=None):
             input_buffer.apply_search(search_state,
                                       include_current_position=False, count=count)
 
-    @handle(Keys.ControlR, filter=has_focus)
-    @handle(Keys.Up, filter=has_focus)
+    @handle(Keys.ControlR, filter=is_searching)
+    @handle(Keys.Up, filter=is_searching)
     def _(event):
         incremental_search(event.cli, IncrementalSearchDirection.BACKWARD, count=event.arg)
 
-    @handle(Keys.ControlS, filter=has_focus)
-    @handle(Keys.Down, filter=has_focus)
+    @handle(Keys.ControlS, filter=is_searching)
+    @handle(Keys.Down, filter=is_searching)
     def _(event):
         incremental_search(event.cli, IncrementalSearchDirection.FORWARD, count=event.arg)
 

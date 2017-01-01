@@ -175,7 +175,19 @@ def find_window_for_buffer_name(cli, buffer_name):
     from .containers import Window
     from .controls import BufferControl
 
-    for l in cli.layout.walk(cli):
+    for l in cli.layout.walk():
         if isinstance(l, Window) and isinstance(l.content, BufferControl):
             if l.content.buffer_name == buffer_name:
                 return l
+
+
+def find_all_controls(layout):
+    """
+    Find all the `UIControl` objects in this layout.
+    """
+    from .containers import Layout, Window
+    assert isinstance(layout, Layout)
+
+    for item in layout.walk():
+        if isinstance(item, Window):
+            yield item.content
