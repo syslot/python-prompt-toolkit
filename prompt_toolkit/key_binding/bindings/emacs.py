@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
-from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
+from prompt_toolkit.enums import SearchDirection, SYSTEM_BUFFER
 from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching, ControlIsSearchable
 from prompt_toolkit.completion import CompleteEvent
 
@@ -403,6 +403,7 @@ def load_emacs_search_bindings():
     @handle(Keys.ControlS, filter=control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
+        search_state = control.search_state
 
         search_state.direction = SearchDirection.FORWARD
         event.cli.focussed_control = control.search_buffer_control

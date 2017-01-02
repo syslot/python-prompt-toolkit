@@ -4,7 +4,7 @@ Key bindings which are also known by GNU readline by the given names.
 See: http://www.delorie.com/gnu/docs/readline/rlman_13.html
 """
 from __future__ import unicode_literals
-from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER
+from prompt_toolkit.enums import SearchDirection
 from prompt_toolkit.selection import PasteMode
 from six.moves import range
 import six
@@ -464,7 +464,7 @@ def start_kbd_macro(event):
 
 
 @register('end-kbd-macro')
-def start_kbd_macro(event):
+def end_kbd_macro(event):
     """
     Stop saving the characters typed into the current keyboard macro and save
     the definition.
@@ -473,7 +473,7 @@ def start_kbd_macro(event):
 
 
 @register('call-last-kbd-macro')
-def start_kbd_macro(event):
+def call_last_kbd_macro(event):
     """
     Re-execute the last keyboard macro defined, by making the characters in the
     macro appear as if typed at the keyboard.

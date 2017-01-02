@@ -33,6 +33,7 @@ from .layout.controls import BufferControl, UIControl
 from .layout.utils import find_all_controls
 from .output import Output
 from .renderer import Renderer, print_tokens
+from .search_state import SearchState
 from .utils import Event
 
 # Following import is required for backwards compatibility.
@@ -170,8 +171,8 @@ class CommandLineInterface(object):
     @focussed_window.setter
     def focussed_window(self, value):
         " Set the `Window` object to be currently focussed. "
-        assert isinstance(ui_control, Window)
-        self.focussed_control = valu.content
+        assert isinstance(value, Window)
+        self.focussed_control = value.content
 
     @property
     def current_buffer(self):
