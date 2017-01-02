@@ -31,6 +31,7 @@ from .key_binding.registry import Registry, BaseRegistry, MergedRegistry, Condit
 from .key_binding.vi_state import ViState
 from .keys import Keys
 from .layout.controls import BufferControl
+from .layout.utils import find_all_controls
 from .output import Output
 from .renderer import Renderer, print_tokens
 from .search_state import SearchState
@@ -109,6 +110,7 @@ class CommandLineInterface(object):
 
         # Invalidate flag. When 'True', a repaint has been scheduled.
         self._invalidated = False
+        self._invalidate_events = []  # Collection of 'invalidate' Event objects.
 
         #: The `InputProcessor` instance.
         self.input_processor = InputProcessor(_DynamicRegistry(self), weakref.ref(self))
@@ -296,6 +298,30 @@ class CommandLineInterface(object):
 
             # Fire render event.
             self.on_render.fire()
+
+            self._update_invalidate_events()
+
+    def _update_invalidate_events(self):
+        """
+        Make sure to attach 'invalidate' handlers to all invalidate events in
+        the UI.
+        """
+        # Remove all the original event handlers. (Components can be removed
+        # from the UI.)
+        for ev in self._invalidate_events:
+            ev -= self.invalidate
+
+        # Gather all new events.
+        def gather_events():
+            for c in find_all_controls(self.layout):
+                if isinstance(c, BufferControl):
+                    yield c.buffer.on_completions_changed
+                    yield c.buffer.on_suggestion_set
+
+        self._invalidate_events = list(gather_events())
+
+        for ev in self._invalidate_events:
+            ev += lambda sender: self.invalidate()
 
     def _on_resize(self):
         """
