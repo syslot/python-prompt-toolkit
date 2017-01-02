@@ -1708,7 +1708,8 @@ def load_vi_open_in_editor_bindings():
     registry = Registry()
     navigation_mode = ViMode() & ViNavigationMode()
 
-    registry.add_binding('v', navigation_mode)(get_by_name('edit-and-execute-command'))
+    registry.add_binding('v', filter=navigation_mode)(
+        get_by_name('edit-and-execute-command'))
     return registry
 
 
