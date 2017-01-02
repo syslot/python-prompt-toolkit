@@ -52,8 +52,12 @@ class Event(object):
 
     def __call__(self):
         " Fire event. "
-        for handler in self._handlers:
-            handler(self.sender)
+        for handler in self._handlers[:]:
+            h = handler()
+            if h:
+                h(self.sender)
+            else:
+                self._handlers.remove(handler)
 
     def fire(self):
         " Alias for just calling the event. "
@@ -71,14 +75,16 @@ class Event(object):
             raise TypeError("%r doesn't take exactly one argument." % handler)
 
         # Add to list of event handlers.
-        self._handlers.append(handler)
+        self._handlers.append(weakref.ref(handler))
         return self
 
-    def __isub__(self, handler):
+    def __isub__(self, handler):  # XXX: test this.
         """
         Remove a handler from this callback.
         """
-        self._handlers.remove(handler)
+        for h in self._handlers[:]:
+            if handler == h():
+                self._handlers.remove(h)
         return self
 
 

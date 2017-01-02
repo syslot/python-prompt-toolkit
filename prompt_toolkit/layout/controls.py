@@ -194,6 +194,11 @@ class TokenListControl(UIControl):
     Control that displays a list of (Token, text) tuples.
     (It's mostly optimized for rather small widgets, like toolbars, menus, etc...)
 
+    When this UI control has the focus, the cursor will be shown in the upper
+    left corner of this control, unless `get_token` returns a
+    ``Token.SetCursorPosition`` token somewhere in the token list, then the
+    cursor will be shown there.
+
     Mouse support:
 
         The list of tokens can also contain tuples of three items, looking like:
@@ -211,14 +216,9 @@ class TokenListControl(UIControl):
     :param get_default_char: Like `default_char`, but this is a callable that
         takes a :class:`prompt_toolkit.interface.CommandLineInterface` and
         returns a :class:`.Char` instance.
-    :param has_focus: `bool` or `CLIFilter`, when this evaluates to `True`,
-        this UI control will take the focus. The cursor will be shown in the
-        upper left corner of this control, unless `get_token` returns a
-        ``Token.SetCursorPosition`` token somewhere in the token list, then the
-        cursor will be shown there.
     """
     def __init__(self, get_tokens, default_char=None, get_default_char=None,
-                 align_right=False, align_center=False, has_focus=False):
+                 align_right=False, align_center=False):
         assert callable(get_tokens)
         assert default_char is None or isinstance(default_char, Char)
         assert get_default_char is None or callable(get_default_char)
@@ -226,7 +226,6 @@ class TokenListControl(UIControl):
 
         self.align_right = to_cli_filter(align_right)
         self.align_center = to_cli_filter(align_center)
-        self._has_focus_filter = to_cli_filter(has_focus)
 
         self.get_tokens = get_tokens
 
@@ -260,9 +259,6 @@ class TokenListControl(UIControl):
         """
         return self._token_cache.get(
             cli.render_counter, lambda: self.get_tokens(cli))
-
-#    def has_focus(self, cli):
-#        return self._has_focus_filter(cli)
 
     def preferred_width(self, cli, max_available_width):
         """
@@ -423,9 +419,6 @@ class FillControl(UIControl):
     def reset(self):
         pass
 
-#    def has_focus(self, cli):
-#        return False
-
     def create_content(self, cli, width, height):
         def get_line(i):
             return []
@@ -459,7 +452,6 @@ class BufferControl(UIControl):
                  input_processors=None,
                  lexer=None,
                  preview_search=False,
-#                 search_buffer_name=SEARCH_BUFFER,
                  search_buffer_control=None,
                  get_search_state=None,
                  menu_position=None,
@@ -491,11 +483,6 @@ class BufferControl(UIControl):
         self.default_char = default_char or Char(token=Token.Transparent)
         self.search_buffer_control = search_buffer_control
 
-#        # Search state.
-#        self.search_text = ''
-#        self.search_direction = SearchDirection.FORWARD
-#        self.search_ignore_case = to_simple_filter(search_ignore_case)
-
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
         #: operations, it happens that a short time, the same document has to be
@@ -514,22 +501,6 @@ class BufferControl(UIControl):
     @property
     def search_state(self):
         return self.get_search_state()
-
-#    def _buffer(self, cli):
-#        """
-#        The buffer object that contains the 'main' content.
-#        """
-#        self.buffer
-#        return cli.buffers[self.buffer_name]
-
-#    def has_focus(self, cli):
-#        # This control gets the focussed if the actual `Buffer` instance has the
-#        # focus or when any of the `InputProcessor` classes tells us that it
-#        # wants the focus. (E.g. in case of a reverse-search, where the actual
-#        # search buffer may not be displayed, but the "reverse-i-search" text
-#        # should get the focus.)
-#        return cli.current_buffer_name == self.buffer_name or \
-#            any(i.has_focus(cli) for i in self.input_processors)
 
     def preferred_width(self, cli, max_available_width):
         """
@@ -653,13 +624,9 @@ class BufferControl(UIControl):
 
         if preview_now():
             ss = self.search_state
-#            if self.get_search_state:
-#                ss = self.get_search_state(cli)
-#            else:
-#                ss = cli.search_state
 
             document = buffer.document_for_search(SearchState(
-                text=cli.current_buffer.text,
+                text=self.search_buffer.text,
                 direction=ss.direction,
                 ignore_case=ss.ignore_case))
         else:
