@@ -169,6 +169,7 @@ class CommandLineInterface(object):
 
     @focussed_window.setter
     def focussed_window(self, value):
+        " Set the `Window` object to be currently focussed. "
         assert isinstance(ui_control, Window)
         self.focussed_control = valu.content
 
