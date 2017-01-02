@@ -312,6 +312,8 @@ class CommandLineInterface(object):
             ev -= self.invalidate
 
         # Gather all new events.
+        # TODO: probably, we want a better more universal way of invalidation
+        #       event propagation.
         def gather_events():
             for c in find_all_controls(self.layout):
                 if isinstance(c, BufferControl):
@@ -320,6 +322,7 @@ class CommandLineInterface(object):
 
         self._invalidate_events = list(gather_events())
 
+        # Attach invalidate event handler.
         for ev in self._invalidate_events:
             ev += lambda sender: self.invalidate()
 
