@@ -11,7 +11,6 @@ __all__ = (
     'HasArg',
     'HasCompletions',
     'HasFocus',
-#    'HasSearch',
     'HasSelection',
     'HasValidationError',
     'IsAborting',
@@ -39,6 +38,7 @@ __all__ = (
 
     # Searching
     'IsSearching',
+    'ControlIsSearchable',
 )
 
 
@@ -382,6 +382,20 @@ class IsSearching(Filter):
 
     def __repr__(self):
         return 'IsSearching()'
+
+
+@memoized()
+class ControlIsSearchable(Filter):
+    " When the current UIControl is searchable. "
+    def __call__(self, cli):
+        from prompt_toolkit.layout.controls import BufferControl
+        control = cli.focussed_control
+
+        return (isinstance(control, BufferControl) and
+                control.search_buffer_control is not None)
+
+    def __repr__(self):
+        return 'ControlIsSearchable()'
 
 
 # For backwards compatibility.

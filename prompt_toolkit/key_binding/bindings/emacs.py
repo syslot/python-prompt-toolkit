@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
-from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching
+from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching, ControlIsSearchable
 from prompt_toolkit.completion import CompleteEvent
 
 from .scroll import scroll_page_up, scroll_page_down
@@ -354,17 +354,8 @@ def load_emacs_search_bindings():
     registry = ConditionalRegistry(Registry(), EmacsMode())
     handle = registry.add_binding
 
-    from prompt_toolkit.layout.controls import BufferControl
-
-    @Condition
-    def control_is_searchable(cli):
-        " When the current UIControl is searchable. "
-        control = cli.focussed_control
-
-        return (isinstance(control, BufferControl) and
-                control.search_buffer_control is not None)
-
     is_searching = IsSearching()
+    control_is_searchable = ControlIsSearchable()
 
     @handle(Keys.ControlG, filter=is_searching)
     @handle(Keys.ControlC, filter=is_searching)
@@ -401,7 +392,7 @@ def load_emacs_search_bindings():
         # Focus previous document again.
         event.cli.focus.focus_previous()
 
-    @handle(Keys.ControlR, filter= ~is_searching&control_is_searchable)
+    @handle(Keys.ControlR, filter=control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
         search_state = control.search_state
@@ -409,7 +400,7 @@ def load_emacs_search_bindings():
         search_state.direction = IncrementalSearchDirection.BACKWARD
         event.cli.focussed_control = control.search_buffer_control
 
-    @handle(Keys.ControlS, filter= ~is_searching&control_is_searchable)
+    @handle(Keys.ControlS, filter=control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
 

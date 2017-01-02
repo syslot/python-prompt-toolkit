@@ -188,6 +188,18 @@ class CommandLineInterface(object):
         else:
             return Buffer(eventloop=self.eventloop)  # Dummy buffer.
 
+    @property
+    def current_search_state(self):
+        """
+        Return the current `SearchState`. (The one for the focussed
+        `BufferControl`.)
+        """
+        ui_control = self.focus.focussed_control
+        if isinstance(ui_control, BufferControl):
+            return ui_control.search_state
+        else:
+            return SearchState()  # Dummy search state.  (Don't return None!)
+
 #    def focus(self, buffer_name):
 #        """
 #        Focus the buffer with the given name on the focus stack.
