@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from .enums import SearchDirection
 from .filters import to_simple_filter
 import six

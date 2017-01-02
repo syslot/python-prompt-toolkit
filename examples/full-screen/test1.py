@@ -18,7 +18,7 @@ from prompt_toolkit.shortcuts import create_eventloop
 from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict, style_from_pygments
 from prompt_toolkit.search_state import SearchState
-from prompt_toolkit.layout.processors import HighlightSearchProcessor
+from prompt_toolkit.layout.processors import HighlightSearchProcessor, ReverseSearchProcessor
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.contrib.completers import WordCompleter
 from prompt_toolkit.enums import EditingMode
@@ -78,7 +78,7 @@ input_processors = None
 #    HighlightSearchProcessor(preview_search=True),
 #]
 
-c5 = BufferControl(buffer=search)
+c5 = BufferControl(buffer=search, input_processors=[ReverseSearchProcessor()])
 c3 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(HtmlLexer), search_buffer_control=c5)
 c4 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(CssLexer), search_buffer_control=c5)
 

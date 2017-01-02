@@ -12,6 +12,7 @@ from six.moves import range
 
 from prompt_toolkit.cache import SimpleCache
 from prompt_toolkit.document import Document
+from prompt_toolkit.enums import SearchDirection
 from prompt_toolkit.filters import to_cli_filter, ViInsertMultipleMode
 from prompt_toolkit.layout.utils import token_list_to_text
 from prompt_toolkit.reactive import Integer
@@ -23,6 +24,7 @@ import re
 
 __all__ = (
     'Processor',
+    'TransformationInput',
     'Transformation',
 
     'HighlightSearchProcessor',
@@ -46,20 +48,13 @@ class Processor(with_metaclass(ABCMeta, object)):
     :class:`~prompt_toolkit.layout.controls.BufferControl`.
     """
     @abstractmethod
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
         """
-        Apply transformation.  Returns a :class:`.Transformation` instance.
+        Apply transformation. Returns a :class:`.Transformation` instance.
 
-        :param cli: :class:`.CommandLineInterface` instance.
-        :param control: :class:`.BufferControl` instance.
-        :param lineno: The number of the line to which we apply the processor.
-        :param source_to_display: A function that returns the position in the
-            `tokens` for any position in the source string. (This takes
-            previous processors into account.)
-        :param tokens: List of tokens that we can transform. (Received from the
-            previous processor.)
+        :param transformation_input: :class:`.TransformationInput` object.
         """
-        return Transformation(tokens)
+        return Transformation(transformation_input.tokens)
 
     def has_focus(self, cli):
         """
@@ -67,6 +62,33 @@ class Processor(with_metaclass(ABCMeta, object)):
         (Used for the reverse-i-search prefix in DefaultPrompt.)
         """
         return False
+
+
+class TransformationInput(object):
+    """
+    :param cli: :class:`.CommandLineInterface` instance.
+    :param control: :class:`.BufferControl` instance.
+    :param lineno: The number of the line to which we apply the processor.
+    :param source_to_display: A function that returns the position in the
+        `tokens` for any position in the source string. (This takes
+        previous processors into account.)
+    :param tokens: List of tokens that we can transform. (Received from the
+        previous processor.)
+    """
+    def __init__(self, cli, buffer_control, document, lineno,
+                 source_to_display, tokens, width, height):
+        self.cli = cli
+        self.buffer_control = buffer_control
+        self.document = document
+        self.lineno = lineno
+        self.source_to_display = source_to_display
+        self.tokens = tokens
+        self.width = width
+        self.height = height
+
+    def unpack(self):
+        return (self.cli, self.buffer_control, self.document, self.lineno,
+                self.source_to_display, self.tokens, self.width, self.height)
 
 
 class Transformation(object):
@@ -114,7 +136,9 @@ class HighlightSearchProcessor(Processor):
         # Otherwise, take the text of the last active search.
         return buffer_control.search_state.text
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
+        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+
         search_text = self._get_search_text(cli, buffer_control)
         searchmatch_current_token = (':', ) + Token.SearchMatch.Current
         searchmatch_token = (':', ) + Token.SearchMatch
@@ -123,10 +147,6 @@ class HighlightSearchProcessor(Processor):
             # For each search match, replace the Token.
             line_text = token_list_to_text(tokens)
             tokens = explode_tokens(tokens)
-
-            buffer_control
-            buffer_control.search_state
-            buffer_control.search_state.ignore_case
 
             if buffer_control.search_state.ignore_case():
                 flags = re.IGNORECASE
@@ -159,7 +179,9 @@ class HighlightSelectionProcessor(Processor):
     """
     Processor that highlights the selection in the document.
     """
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
+        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+
         selected_token = (':', ) + Token.SelectedText
 
         # In case of selection, highlight all matches.
@@ -194,8 +216,8 @@ class PasswordProcessor(Processor):
     def __init__(self, char='*'):
         self.char = char
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
-        tokens = [(token, self.char * len(text)) for token, text in tokens]
+    def apply_transformation(self, ti):
+        tokens = [(token, self.char * len(text)) for token, text in ti.tokens]
         return Transformation(tokens)
 
 
@@ -247,7 +269,9 @@ class HighlightMatchingBracketProcessor(Processor):
         else:
             return []
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
+        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+
         # Get the highlight positions.
         key = (cli.render_counter, document.text, document.cursor_position)
         positions = self._positions_cache.get(
@@ -277,7 +301,9 @@ class DisplayMultipleCursors(Processor):
     """
     _insert_multiple =  ViInsertMultipleMode()
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
+        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+
         buff = buffer_control.buffer
 
         if self._insert_multiple(cli):
@@ -318,15 +344,16 @@ class BeforeInput(Processor):
         assert callable(get_tokens)
         self.get_tokens = get_tokens
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
-        if lineno == 0:
-            tokens_before = self.get_tokens(cli)
-            tokens = tokens_before + tokens
+    def apply_transformation(self, ti):
+        if ti.lineno == 0:
+            tokens_before = self.get_tokens(ti.cli)
+            tokens = tokens_before + ti.tokens
 
             shift_position = token_list_len(tokens_before)
             source_to_display = lambda i: i + shift_position
             display_to_source = lambda i: i - shift_position
         else:
+            tokens = ti.tokens
             source_to_display = None
             display_to_source = None
 
@@ -360,12 +387,12 @@ class AfterInput(Processor):
         assert callable(get_tokens)
         self.get_tokens = get_tokens
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, ti):
         # Insert tokens after the last line.
-        if lineno == document.line_count - 1:
-            return Transformation(tokens=tokens + self.get_tokens(cli))
+        if ti.lineno == ti.document.line_count - 1:
+            return Transformation(tokens=ti.tokens + self.get_tokens(ti.cli))
         else:
-            return Transformation(tokens=tokens)
+            return Transformation(tokens=ti.tokens)
 
     @classmethod
     def static(cls, text, token=Token):
@@ -390,19 +417,19 @@ class AppendAutoSuggestion(Processor):
     def __init__(self, token=Token.AutoSuggestion):
         self.token = token
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, ti):
         # Insert tokens after the last line.
-        if lineno == document.line_count - 1:
-            buffer = buffer_control.buffer
+        if ti.lineno == ti.document.line_count - 1:
+            buffer = ti.buffer_control.buffer
 
-            if buffer.suggestion and buffer.document.is_cursor_at_the_end:
+            if buffer.suggestion and buffer.document.is_cursor_at_the_end:  # XXX: shouldn't this be ti.document?
                 suggestion = buffer.suggestion.text
             else:
                 suggestion = ''
 
-            return Transformation(tokens=tokens + [(self.token, suggestion)])
+            return Transformation(tokens=ti.tokens + [(self.token, suggestion)])
         else:
-            return Transformation(tokens=tokens)
+            return Transformation(tokens=ti.tokens)
 
 
 class ShowLeadingWhiteSpaceProcessor(Processor):
@@ -426,7 +453,10 @@ class ShowLeadingWhiteSpaceProcessor(Processor):
         self.token = token
         self.get_char = get_char
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, ti):
+        cli = ti.cli
+        tokens = ti.tokens
+
         # Walk through all te tokens.
         if tokens and token_list_to_text(tokens).startswith(' '):
             t = (self.token, self.get_char(cli))
@@ -463,7 +493,10 @@ class ShowTrailingWhiteSpaceProcessor(Processor):
         self.get_char = get_char
 
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, ti):
+        cli = ti.cli
+        tokens = ti.tokens
+
         if tokens and tokens[-1][1].endswith(' '):
             t = (self.token, self.get_char(cli))
             tokens = explode_tokens(tokens)
@@ -500,7 +533,9 @@ class TabsProcessor(Processor):
         self.tabstop = tabstop
         self.token = token
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, ti):
+        cli = ti.cli
+
         tabstop = int(self.tabstop)
         token = self.token
 
@@ -509,7 +544,7 @@ class TabsProcessor(Processor):
         separator2 = self.get_char2(cli)
 
         # Transform tokens.
-        tokens = explode_tokens(tokens)
+        tokens = explode_tokens(ti.tokens)
 
         position_mappings = {}
         result_tokens = []
@@ -555,6 +590,53 @@ class TabsProcessor(Processor):
             display_to_source=display_to_source)
 
 
+class ReverseSearchProcessor(Processor):
+    """
+    Process to display the "(reverse-i-search)`...`:..." stuff around
+    the search buffer.
+
+    Note: This processor is meant to be applied to the BufferControl that
+    contains the search buffer, it's not meant for the original input.
+    """
+    def _get_main_buffer(self, cli, buffer_control):
+        from prompt_toolkit.layout.controls import BufferControl
+        prev_control = cli.focus.previous_focussed_control
+        if isinstance(prev_control, BufferControl) and \
+                prev_control.search_buffer_control == buffer_control:
+            return prev_control, prev_control.search_state
+        return None,None
+
+    def apply_transformation(self, ti):
+        main_control, search_state = self._get_main_buffer(ti.cli, ti.buffer_control)
+
+        if ti.lineno == 0 and main_control:
+            content = main_control.create_content(ti.cli, ti.width, ti.height)
+
+            # Get the line from the original document for this search.
+            line_tokens = content.get_line(
+                main_control.buffer.document_for_search(search_state).cursor_position_row)
+
+            if search_state.direction == SearchDirection.FORWARD:
+                direction_text = 'i-search'
+            else:
+                direction_text = 'reverse-i-search'
+
+            tokens_before = [(Token, '(%s)`' % direction_text)]
+            tokens_after = [(Token, "':")]
+            tokens = tokens_before + ti.tokens + tokens_after + line_tokens
+
+            shift_position = token_list_len(tokens_before)
+            source_to_display = lambda i: i + shift_position
+            display_to_source = lambda i: i - shift_position
+        else:
+            source_to_display = None
+            display_to_source = None
+            tokens = ti.tokens
+
+        return Transformation(tokens, source_to_display=source_to_display,
+                              display_to_source=display_to_source)
+
+
 class ConditionalProcessor(Processor):
     """
     Processor that applies another processor, according to a certain condition.
@@ -579,13 +661,12 @@ class ConditionalProcessor(Processor):
         self.processor = processor
         self.filter = to_cli_filter(filter)
 
-    def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
         # Run processor when enabled.
-        if self.filter(cli):
-            return self.processor.apply_transformation(
-                cli, buffer_control, document, lineno, source_to_display, tokens)
+        if self.filter(transformation_input.cli):
+            return self.processor.apply_transformation(transformation_input)
         else:
-            return Transformation(tokens)
+            return Transformation(transformation_input.tokens)
 
     def has_focus(self, cli):
         if self.filter(cli):

@@ -18,7 +18,7 @@ from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
 
 from .lexers import Lexer, SimpleLexer
-from .processors import Processor, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors
+from .processors import Processor, TransformationInput, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors
 
 from .screen import Char, Point
 from .utils import token_list_width, split_lines, token_list_to_text
@@ -544,7 +544,7 @@ class BufferControl(UIControl):
 
         return self._token_cache.get(document.text, get_tokens_for_line)
 
-    def _create_get_processed_line_func(self, cli, document):
+    def _create_get_processed_line_func(self, cli, document, width, height):
         """
         Create a function that takes a line number of the current document and
         returns a _ProcessedLine(processed_tokens, source_to_display, display_to_source)
@@ -570,8 +570,9 @@ class BufferControl(UIControl):
 
             # Apply each processor.
             for p in self.input_processors:
-                transformation = p.apply_transformation(
-                    cli, self, document, lineno, source_to_display, tokens)
+                transformation = p.apply_transformation(TransformationInput(
+                    cli, self, document, lineno, source_to_display, tokens,
+                    width, height))
                 tokens = transformation.tokens
 
                 if cursor_column:
@@ -627,7 +628,8 @@ class BufferControl(UIControl):
         else:
             document = buffer.document
 
-        get_processed_line = self._create_get_processed_line_func(cli, document)
+        get_processed_line = self._create_get_processed_line_func(
+            cli, document, width, height)
         self._last_get_processed_line = get_processed_line
 
         def translate_rowcol(row, col):
