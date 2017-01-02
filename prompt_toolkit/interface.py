@@ -28,7 +28,8 @@ from .key_binding.input_processor import KeyPress
 from .key_binding.registry import Registry, BaseRegistry, MergedRegistry, ConditionalRegistry
 from .key_binding.vi_state import ViState
 from .keys import Keys
-from .layout.controls import BufferControl
+from .layout.containers import Window
+from .layout.controls import BufferControl, UIControl
 from .layout.utils import find_all_controls
 from .output import Output
 from .renderer import Renderer, print_tokens
@@ -156,7 +157,20 @@ class CommandLineInterface(object):
     @focussed_control.setter
     def focussed_control(self, ui_control):
         " Set `UIControl` to receive the focus. "  # This is a shortcut.
+        assert isinstance(ui_control, UIControl)
         self.application.focus.focussed_control = ui_control
+
+    @property
+    def focussed_window(self):
+        " Return the `Window` object that is currently focussed. "
+        for item in self.layout.walk():
+            if isinstance(item, Window) and item.content == self.focussed_control:
+                return item
+
+    @focussed_window.setter
+    def focussed_window(self, value):
+        assert isinstance(ui_control, Window)
+        self.focussed_control = valu.content
 
     @property
     def current_buffer(self):

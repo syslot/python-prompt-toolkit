@@ -21,6 +21,7 @@ from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.layout.processors import HighlightSearchProcessor
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.contrib.completers import WordCompleter
+from prompt_toolkit.enums import EditingMode
 
 from pygments.lexers import HtmlLexer, CssLexer
 from pygments.styles import get_style_by_name
@@ -72,9 +73,10 @@ c2 = CustomControl('o')
 search = Buffer(eventloop=loop)
 b = Buffer(eventloop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=False)
 
-input_processors = [
-    HighlightSearchProcessor(preview_search=True),
-]
+input_processors = None
+#[
+#    HighlightSearchProcessor(preview_search=True),
+#]
 
 c5 = BufferControl(buffer=search)
 c3 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(HtmlLexer), search_buffer_control=c5)
@@ -124,6 +126,8 @@ application = Application(
 
     # Let's add mouse support!
     mouse_support=True,
+
+    editing_mode = EditingMode.VI,
 
     # Using an alternate screen buffer means as much as: "run full screen".
     # It switches the terminal to an alternate screen.

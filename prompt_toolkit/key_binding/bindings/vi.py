@@ -8,7 +8,6 @@ from prompt_toolkit.filters.cli import ViNavigationMode, ViInsertMode, ViInsertM
 from prompt_toolkit.key_binding.digraphs import DIGRAPHS
 from prompt_toolkit.key_binding.vi_state import CharacterFind, InputMode
 from prompt_toolkit.keys import Keys
-from prompt_toolkit.layout.utils import find_window_for_buffer_name
 from prompt_toolkit.selection import SelectionType, SelectionState, PasteMode
 
 from .scroll import scroll_forward, scroll_backward, scroll_half_page_up, scroll_half_page_down, scroll_one_line_up, scroll_one_line_down, scroll_page_up, scroll_page_down
@@ -1286,7 +1285,7 @@ def load_vi_bindings(get_search_state=None):
         Moves to the start of the visible region. (Below the scroll offset.)
         Implements 'cH', 'dH', 'H'.
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        w = event.cli.focussed_window
         b = event.current_buffer
 
         if w and w.render_info:
@@ -1307,7 +1306,7 @@ def load_vi_bindings(get_search_state=None):
         Moves cursor to the vertical center of the visible region.
         Implements 'cM', 'dM', 'M'.
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        w = event.cli.focussed_window
         b = event.current_buffer
 
         if w and w.render_info:
@@ -1327,7 +1326,7 @@ def load_vi_bindings(get_search_state=None):
         """
         Moves to the end of the visible region. (Above the scroll offset.)
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        w = event.cli.focussed_window
         b = event.current_buffer
 
         if w and w.render_info:
@@ -1381,9 +1380,8 @@ def load_vi_bindings(get_search_state=None):
         """
         Scrolls the window to makes the current line the first line in the visible region.
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
         b = event.cli.current_buffer
-        w.vertical_scroll = b.document.cursor_position_row
+        event.cli.focussed_window.vertical_scroll = b.document.cursor_position_row
 
     @handle('z', '-', filter=navigation_mode|selection_mode)
     @handle('z', 'b', filter=navigation_mode|selection_mode)
@@ -1391,19 +1389,17 @@ def load_vi_bindings(get_search_state=None):
         """
         Scrolls the window to makes the current line the last line in the visible region.
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
-
         # We can safely set the scroll offset to zero; the Window will meke
         # sure that it scrolls at least enough to make the cursor visible
         # again.
-        w.vertical_scroll = 0
+        event.cli.focussed_window.vertical_scroll = 0
 
     @handle('z', 'z', filter=navigation_mode|selection_mode)
     def _(event):
         """
         Center Window vertically around cursor.
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        w = event.cli.focussed_window
         b = event.cli.current_buffer
 
         if w and w.render_info:
@@ -1504,7 +1500,7 @@ def load_vi_bindings(get_search_state=None):
         """
         Like g0, but half a screenwidth to the right. (Or as much as possible.)
         """
-        w = find_window_for_buffer_name(event.cli, event.cli.current_buffer_name)
+        w = event.cli.focussed_window
         buff = event.current_buffer
 
         if w and w.render_info:

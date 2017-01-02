@@ -18,7 +18,8 @@ from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
 
 from .lexers import Lexer, SimpleLexer
-from .processors import Processor
+from .processors import Processor, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors
+
 from .screen import Char, Point
 from .utils import token_list_width, split_lines, token_list_to_text
 
@@ -459,6 +460,14 @@ class BufferControl(UIControl):
             search_state = SearchState()
             def get_search_state():
                 return search_state
+
+        # Default input processors (display search and selection by default.)
+        if input_processors is None:
+            input_processors = [
+                HighlightSearchProcessor(),
+                HighlightSelectionProcessor(),
+                DisplayMultipleCursors(),
+            ]
 
         self.preview_search = to_cli_filter(preview_search)
         self.get_search_state = get_search_state

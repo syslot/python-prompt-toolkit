@@ -6,8 +6,6 @@ they are very useful for navigating through long multiline buffers, like in
 Vi, Emacs, etc...
 """
 from __future__ import unicode_literals
-
-from prompt_toolkit.layout.utils import find_window_for_buffer_name
 from six.moves import range
 
 __all__ = (
@@ -31,7 +29,7 @@ def scroll_forward(event, half=False):
     """
     Scroll window down.
     """
-    w = _current_window_for_event(event)
+    w = event.cli.focussed_window
     b = event.cli.current_buffer
 
     if w and w.render_info:
@@ -62,7 +60,7 @@ def scroll_backward(event, half=False):
     """
     Scroll window up.
     """
-    w = _current_window_for_event(event)
+    w = event.cli.focussed_window
     b = event.cli.current_buffer
 
     if w and w.render_info:
@@ -152,7 +150,7 @@ def scroll_page_down(event):
     """
     Scroll page down. (Prefer the cursor at the top of the page, after scrolling.)
     """
-    w = _current_window_for_event(event)
+    w = event.cli.focussed_window
     b = event.cli.current_buffer
 
     if w and w.render_info:
@@ -168,7 +166,7 @@ def scroll_page_up(event):
     """
     Scroll page up. (Prefer the cursor at the bottom of the page, after scrolling.)
     """
-    w = _current_window_for_event(event)
+    w = event.cli.focussed_window
     b = event.cli.current_buffer
 
     if w and w.render_info:
