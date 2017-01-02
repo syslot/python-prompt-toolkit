@@ -18,7 +18,6 @@ from subprocess import Popen
 
 from .application import Application, AbortAction
 from .buffer import Buffer
-from .buffer_mapping import BufferMapping
 from .cache import SimpleCache
 from .completion import CompleteEvent, get_common_complete_suffix
 from .enums import SEARCH_BUFFER
@@ -81,10 +80,6 @@ class CommandLineInterface(object):
         # Inputs and outputs.
         self.output = output or create_output()
         self.input = input or StdinInput(sys.stdin)
-
-        #: The input buffers.
-#        assert isinstance(application.buffers, BufferMapping)
-#        self.buffers = application.buffers
 
         #: EditingMode.VI or EditingMode.EMACS
         self.editing_mode = application.editing_mode
@@ -313,11 +308,6 @@ class CommandLineInterface(object):
         self.renderer.erase(leave_alternate_screen=False, erase_title=False)
         self.renderer.request_absolute_cursor_position()
         self._redraw()
-
-#    def _load_next_buffer_indexes(self):
-#        for buff, index in self._next_buffer_indexes.items():
-#            if buff in self.buffers:
-#                self.buffers[buff].working_index = index
 
     def _pre_run(self, pre_run=None):
         " Called during `run`. "
