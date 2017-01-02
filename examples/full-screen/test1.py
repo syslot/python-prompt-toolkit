@@ -19,6 +19,8 @@ from prompt_toolkit.token import Token
 from prompt_toolkit.styles import style_from_dict, style_from_pygments
 from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.layout.processors import HighlightSearchProcessor
+from prompt_toolkit.layout.menus import CompletionsMenu
+from prompt_toolkit.contrib.completers import WordCompleter
 
 from pygments.lexers import HtmlLexer, CssLexer
 from pygments.styles import get_style_by_name
@@ -53,13 +55,22 @@ class CustomControl(UIControl):
 
         return UIControlKeyBindings(registry)
 
+animal_completer = WordCompleter([
+    'alligator', 'ant', 'ape', 'bat', 'bear', 'beaver', 'bee', 'bison',
+    'butterfly', 'cat', 'chicken', 'crocodile', 'dinosaur', 'dog', 'dolphine',
+    'dove', 'duck', 'eagle', 'elephant', 'fish', 'goat', 'gorilla', 'kangoroo',
+    'leopard', 'lion', 'mouse', 'rabbit', 'rat', 'snake', 'spider', 'turkey',
+    'turtle',
+], ignore_case=True)
+
+
 loop = create_eventloop()
 
 c1 = CustomControl('x')
 c2 = CustomControl('o')
 
 search = Buffer(eventloop=loop)
-b = Buffer(eventloop=loop,is_multiline=True)
+b = Buffer(eventloop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=True)
 
 input_processors = [
     HighlightSearchProcessor(preview_search=True),
@@ -69,13 +80,18 @@ c5 = BufferControl(buffer=search)
 c3 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(HtmlLexer), search_buffer_control=c5)
 c4 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(CssLexer), search_buffer_control=c5)
 
-layout = VSplit([
+layout = FloatContainer(VSplit([
     Window(content=c1),
     Window(content=c2),
     Window(content=c3),
     Window(content=c4),
     Window(content=c5),
+]), [
+    Float(xcursor=True,
+          ycursor=True,
+          content=CompletionsMenu(max_height=16, scroll_offset=1))
 ])
+
 
 
 registry = load_key_bindings(enable_search=True)  # Start with the `KeyBindingManager`.

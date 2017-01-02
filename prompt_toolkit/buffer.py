@@ -245,6 +245,7 @@ class Buffer(object):
         assert on_completions_changed is None or callable(on_completions_changed)
         assert on_suggestion_set is None or callable(on_suggestion_set)
 
+        self.eventloop = eventloop
         self.completer = completer
         self.auto_suggest = auto_suggest
         self.validator = validator
