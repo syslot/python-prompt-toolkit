@@ -48,17 +48,10 @@ class HasFocus(Filter):
     Enable when this buffer has the focus.
     """
     def __init__(self, buffer_name):
-        self._buffer_name = buffer_name
-
-    @property
-    def buffer_name(self):
-        " The given buffer name. (Read-only) "
-        return self._buffer_name
+        self.buffer_name = buffer_name
 
     def __call__(self, cli):
-        return False
-    #  XXX XXX XXX FIXME
-#        return cli.current_buffer_name == self.buffer_name
+        return cli.current_buffer.name == self.buffer_name
 
     def __repr__(self):
         return 'HasFocus(%r)' % self.buffer_name

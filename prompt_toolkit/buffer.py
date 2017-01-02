@@ -194,6 +194,9 @@ class Buffer(object):
     :param history: :class:`~prompt_toolkit.history.History` instance.
     :param tempfile_suffix: Suffix to be appended to the tempfile for the 'open
                            in editor' function.
+    :param name: Name for this buffer. E.g. DEFAULT_BUFFER. This is mostly
+        useful for key bindings where we sometimes prefer to refer to a buffer
+        by their name instead of by reference.
 
     Events:
 
@@ -221,7 +224,7 @@ class Buffer(object):
         changes will not be allowed.
     """
     def __init__(self, eventloop=None, completer=None, auto_suggest=None, history=None,
-                 validator=None, tempfile_suffix='',
+                 validator=None, tempfile_suffix='', name='',
                  is_multiline=False, complete_while_typing=False,
                  enable_history_search=False, initial_document=None,
                  accept_action=AcceptAction.IGNORE, read_only=False,
@@ -239,6 +242,7 @@ class Buffer(object):
         assert completer is None or isinstance(completer, Completer)
         assert auto_suggest is None or isinstance(auto_suggest, AutoSuggest)
         assert history is None or isinstance(history, History)
+        assert isinstance(name, six.text_type)
         assert on_text_changed is None or callable(on_text_changed)
         assert on_text_insert is None or callable(on_text_insert)
         assert on_cursor_position_changed is None or callable(on_cursor_position_changed)
@@ -250,6 +254,7 @@ class Buffer(object):
         self.auto_suggest = auto_suggest
         self.validator = validator
         self.tempfile_suffix = tempfile_suffix
+        self.name = name
         self.accept_action = accept_action
 
         # Filters. (Usually, used by the key bindings to drive the buffer.)

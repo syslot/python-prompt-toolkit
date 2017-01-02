@@ -658,7 +658,6 @@ class BufferControl(UIControl):
         # If there is an auto completion going on, use that start point for a
         # pop-up menu position. (But only when this buffer has the focus --
         # there is only one place for a menu, determined by the focussed buffer.)
-#        if cli.current_buffer_name == self.buffer_name:
         if cli.focussed_control == self:
             menu_position = self.menu_position(cli) if self.menu_position else None
             if menu_position is not None:

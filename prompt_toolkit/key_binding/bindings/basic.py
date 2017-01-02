@@ -354,7 +354,7 @@ def load_abort_and_exit_bindings():
     def ctrl_d_condition(cli):
         """ Ctrl-D binding is only active when the default buffer is selected
         and empty. """
-        return (cli.current_buffer_name == DEFAULT_BUFFER and
+        return (cli.current_buffer.name == DEFAULT_BUFFER and
                 not cli.current_buffer.text)
 
     handle(Keys.ControlD, filter=ctrl_d_condition)(get_by_name('end-of-file'))
