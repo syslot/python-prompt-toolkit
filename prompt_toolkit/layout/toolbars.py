@@ -101,7 +101,7 @@ class SearchToolbarControl(BufferControl):
             lexer=SimpleLexer(token=token.Text))
 
 
-class SearchToolbar(ConditionalContainer):
+class SearchToolbar(ConditionalContainer):  # FIXME
     def __init__(self, vi_mode=False):
         super(SearchToolbar, self).__init__(
             content=Window(
