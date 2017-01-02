@@ -11,7 +11,7 @@ from .containers import Window, ConditionalContainer
 from .screen import Char
 from .utils import token_list_len
 from prompt_toolkit.enums import SEARCH_BUFFER, SYSTEM_BUFFER
-from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, HasSearch, Always, IsDone
+from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone
 from prompt_toolkit.token import Token
 
 __all__ = (
@@ -107,7 +107,7 @@ class SearchToolbar(ConditionalContainer):
             content=Window(
                 SearchToolbarControl(vi_mode=vi_mode),
                 height=LayoutDimension.exact(1)),
-            filter=HasSearch() & ~IsDone())
+            filter=IsSearching() & ~IsDone())
 
 
 class CompletionsToolbarControl(UIControl):

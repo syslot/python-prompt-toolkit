@@ -12,7 +12,7 @@ __all__ = (
     'HasCompletions',
     'HasFocus',
 #    'InFocusStack',
-    'HasSearch',
+#    'HasSearch',
     'HasSelection',
     'HasValidationError',
     'IsAborting',
@@ -37,6 +37,9 @@ __all__ = (
     'EmacsMode',
     'EmacsInsertMode',
     'EmacsSelectionMode',
+
+    # Searching
+    'IsSearching',
 )
 
 
@@ -152,18 +155,6 @@ class HasArg(Filter):
 
     def __repr__(self):
         return 'HasArg()'
-
-
-@memoized()
-class HasSearch(Filter):
-    """
-    Incremental search is active.
-    """
-    def __call__(self, cli):
-        return cli.is_searching
-
-    def __repr__(self):
-        return 'HasSearch()'
 
 
 @memoized()
@@ -395,3 +386,24 @@ class EmacsSelectionMode(Filter):
 
     def __repr__(self):
         return 'EmacsSelectionMode()'
+
+
+@memoized()
+class IsSearching(Filter):
+    " When we are searching. "
+    def __call__(self, cli):
+        from prompt_toolkit.layout.controls import BufferControl
+        control = cli.focus.focussed_control
+        prev = cli.focus.previous_focussed_control
+
+        return (isinstance(prev, BufferControl) and
+                isinstance(control, BufferControl) and
+                prev.search_buffer_control is not None and
+                prev.search_buffer_control == control)
+
+    def __repr__(self):
+        return 'IsSearching()'
+
+
+# For backwards compatibility.
+HasSearch = IsSearching

@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
-from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg
+from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching
 from prompt_toolkit.completion import CompleteEvent
 
 from .scroll import scroll_page_up, scroll_page_down
@@ -364,16 +364,7 @@ def load_emacs_search_bindings():
         return (isinstance(control, BufferControl) and
                 control.search_buffer_control is not None)
 
-    @Condition
-    def is_searching(cli):
-        " When we are searching. "
-        control = cli.focus.focussed_control
-        prev = cli.focus.previous_focussed_control
-
-        return (isinstance(prev, BufferControl) and
-                isinstance(control, BufferControl) and
-                prev.search_buffer_control is not None and
-                prev.search_buffer_control == control)
+    is_searching = IsSearching()
 
     @handle(Keys.ControlG, filter=is_searching)
     @handle(Keys.ControlC, filter=is_searching)

@@ -24,7 +24,7 @@ from .completion import CompleteEvent, get_common_complete_suffix
 from .enums import SEARCH_BUFFER
 from .eventloop.base import EventLoop
 from .eventloop.callbacks import EventLoopCallbacks
-from .filters import Condition
+from .filters import Condition, IsSearching
 from .input import StdinInput, Input
 from .key_binding.input_processor import InputProcessor
 from .key_binding.input_processor import KeyPress
@@ -164,29 +164,6 @@ class CommandLineInterface(object):
         " Set `UIControl` to receive the focus. "  # This is a shortcut.
         self.application.focus.focussed_control = ui_control
 
-#    def start_completion(self, buffer_name=None, select_first=False,
-#                         select_last=False, insert_common_part=False,
-#                         complete_event=None):
-#        """
-#        Start asynchronous autocompletion of this buffer.
-#        (This will do nothing if a previous completion was still in progress.)
-#        """
-#        buffer_name = buffer_name or self.current_buffer_name
-#        completer = self._async_completers.get(buffer_name)
-#
-#        if completer:
-#            completer(select_first=select_first,
-#                      select_last=select_last,
-#                      insert_common_part=insert_common_part,
-#                      complete_event=CompleteEvent(completion_requested=True))
-
-#    @property
-#    def current_buffer_name(self):
-#        """
-#        The name of the current  :class:`.Buffer`. (Or `None`.)
-#        """
-#        return self.buffers.current_name(self)
-
     @property
     def current_buffer(self):
         """
@@ -201,8 +178,6 @@ class CommandLineInterface(object):
             return ui_control.buffer
         else:
             return Buffer(eventloop=self.eventloop)  # Dummy buffer.
-
-#        return self.buffers.current(self)
 
 #    def focus(self, buffer_name):
 #        """
@@ -236,11 +211,11 @@ class CommandLineInterface(object):
         return result
 
     @property
-    def is_searching(self):
+    def is_searching(self):  # XXX: deprecate!
         """
         True when we are searching.
         """
-        return self.current_buffer_name == SEARCH_BUFFER
+        return IsSearching()(self)
 
     def reset(self, reset_current_buffer=False):
         """
