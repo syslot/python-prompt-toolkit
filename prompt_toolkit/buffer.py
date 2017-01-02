@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 from .auto_suggest import AutoSuggest
 from .cache import FastDictCache
 from .clipboard import ClipboardData
-from .completion import Completer, Completion, CompleteEvent
+from .completion import CompleteEvent, get_common_complete_suffix, Completer, Completion
 from .document import Document
 from .enums import SearchDirection
 from .eventloop.base import EventLoop

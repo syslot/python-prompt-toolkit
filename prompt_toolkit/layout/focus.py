@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 from .containers import Layout
-from .controls import BufferControl, UIControl
+from .controls import UIControl
 from .utils import find_all_controls
 
 __all__ = (

@@ -19,8 +19,6 @@ from subprocess import Popen
 from .application import Application, AbortAction
 from .buffer import Buffer
 from .cache import SimpleCache
-from .completion import CompleteEvent, get_common_complete_suffix
-from .enums import SEARCH_BUFFER
 from .eventloop.base import EventLoop
 from .eventloop.callbacks import EventLoopCallbacks
 from .filters import Condition, IsSearching
@@ -34,7 +32,6 @@ from .layout.controls import BufferControl
 from .layout.utils import find_all_controls
 from .output import Output
 from .renderer import Renderer, print_tokens
-from .search_state import SearchState
 from .utils import Event
 
 # Following import is required for backwards compatibility.
@@ -313,7 +310,8 @@ class CommandLineInterface(object):
 
         # Gather all new events.
         # TODO: probably, we want a better more universal way of invalidation
-        #       event propagation.
+        #       event propagation. (Any control should be able to invalidate
+        #       itself.)
         def gather_events():
             for c in find_all_controls(self.layout):
                 if isinstance(c, BufferControl):

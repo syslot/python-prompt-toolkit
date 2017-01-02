@@ -12,7 +12,6 @@ from six.moves import range
 
 from prompt_toolkit.cache import SimpleCache
 from prompt_toolkit.document import Document
-from prompt_toolkit.enums import SEARCH_BUFFER
 from prompt_toolkit.filters import to_cli_filter, ViInsertMultipleMode
 from prompt_toolkit.layout.utils import token_list_to_text
 from prompt_toolkit.reactive import Integer
@@ -102,12 +101,6 @@ class HighlightSearchProcessor(Processor):
     def __init__(self, preview_search=False):
         self.preview_search = to_cli_filter(preview_search)
 
-#    def _get_search_state(self, cli, buffer_control):
-#        if buffer_control.get_search_state is None:
-#            return cli.search_state
-#        else:
-#            return buffer_control.get_search_state(cli)
-
     def _get_search_text(self, cli, buffer_control):
         """
         The text we are searching for.
@@ -120,7 +113,6 @@ class HighlightSearchProcessor(Processor):
 
         # Otherwise, take the text of the last active search.
         return buffer_control.search_state.text
-#        return self._get_search_state(cli, buffer_control).text
 
     def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         search_text = self._get_search_text(cli, buffer_control)

@@ -10,8 +10,7 @@ from six.moves import range
 
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.enums import SearchDirection
-from prompt_toolkit.filters import to_cli_filter, to_simple_filter, Condition
+from prompt_toolkit.filters import to_cli_filter
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.selection import SelectionType
@@ -50,17 +49,6 @@ class UIControl(with_metaclass(ABCMeta, object)):
 
     def preferred_height(self, cli, width, max_available_height, wrap_lines):
         return None
-
-#    def has_focus(self, cli):
-#        """
-#        Return ``True`` when this user control has the focus.
-#
-#        If so, the cursor will be displayed according to the cursor position
-#        reported by :meth:`.UIControl.create_content`. If the created content
-#        has the property ``show_cursor=False``, the cursor will be hidden from
-#        the output.
-#        """
-#        return False
 
     @abstractmethod
     def create_content(self, cli, width, height):
