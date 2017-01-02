@@ -10,8 +10,8 @@ from six.moves import range
 
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.enums import SearchDirection
+from prompt_toolkit.filters import to_cli_filter, to_simple_filter, Condition
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.selection import SelectionType
@@ -446,8 +446,9 @@ class BufferControl(UIControl):
     :param input_processors: list of :class:`~prompt_toolkit.layout.processors.Processor`.
     :param lexer: :class:`~prompt_toolkit.layout.lexers.Lexer` instance for syntax highlighting.
     :param preview_search: `bool` or `CLIFilter`: Show search while typing.
-    :param get_search_state: Callable that takes a CommandLineInterface and
-        returns the SearchState to be used. (If not CommandLineInterface.search_state.)
+#    :param get_search_state: Callable that takes a CommandLineInterface and
+#        returns the SearchState to be used. (If not CommandLineInterface.search_state.)
+    :param get_search_state: Callable that returns the SearchState to be used.
     :param buffer: The `Buffer` object to be displayed.
     :param default_char: :class:`.Char` instance to use to fill the background. This is
         transparent by default.
@@ -463,7 +464,8 @@ class BufferControl(UIControl):
                  get_search_state=None,
                  menu_position=None,
                  default_char=None,
-                 focus_on_click=False):
+                 focus_on_click=False,
+                 search_ignore_case=False):
         assert isinstance(buffer, Buffer)
         assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
         assert menu_position is None or callable(menu_position)
@@ -471,6 +473,12 @@ class BufferControl(UIControl):
         assert search_buffer_control is None or isinstance(search_buffer_control, BufferControl)
         assert get_search_state is None or callable(get_search_state)
         assert default_char is None or isinstance(default_char, Char)
+
+        # Default search state.
+        if get_search_state is None:
+            search_state = SearchState()
+            def get_search_state():
+                return search_state
 
         self.preview_search = to_cli_filter(preview_search)
         self.get_search_state = get_search_state
@@ -482,6 +490,11 @@ class BufferControl(UIControl):
         self.lexer = lexer or SimpleLexer()
         self.default_char = default_char or Char(token=Token.Transparent)
         self.search_buffer_control = search_buffer_control
+
+#        # Search state.
+#        self.search_text = ''
+#        self.search_direction = SearchDirection.FORWARD
+#        self.search_ignore_case = to_simple_filter(search_ignore_case)
 
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
@@ -497,6 +510,10 @@ class BufferControl(UIControl):
     def search_buffer(self):
         if self.search_buffer_control is not None:
             return self.search_buffer_control.buffer
+
+    @property
+    def search_state(self):
+        return self.get_search_state()
 
 #    def _buffer(self, cli):
 #        """
@@ -635,10 +652,11 @@ class BufferControl(UIControl):
                         self.preview_search(cli))
 
         if preview_now():
-            if self.get_search_state:
-                ss = self.get_search_state(cli)
-            else:
-                ss = cli.search_state
+            ss = self.search_state
+#            if self.get_search_state:
+#                ss = self.get_search_state(cli)
+#            else:
+#                ss = cli.search_state
 
             document = buffer.document_for_search(SearchState(
                 text=cli.current_buffer.text,

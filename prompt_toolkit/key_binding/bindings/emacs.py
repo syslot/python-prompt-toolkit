@@ -350,7 +350,7 @@ def load_emacs_system_bindings():
     return registry
 
 
-def load_emacs_search_bindings(get_search_state=None):
+def load_emacs_search_bindings():
     registry = ConditionalRegistry(Registry(), EmacsMode())
     handle = registry.add_binding
 
@@ -375,11 +375,6 @@ def load_emacs_search_bindings(get_search_state=None):
                 prev.search_buffer_control is not None and
                 prev.search_buffer_control == control)
 
-    assert get_search_state is None or callable(get_search_state)
-
-    if not get_search_state:
-        def get_search_state(cli): return cli.search_state
-
     @handle(Keys.ControlG, filter=is_searching)
     @handle(Keys.ControlC, filter=is_searching)
     # NOTE: the reason for not also binding Escape to this one, is that we want
@@ -399,13 +394,14 @@ def load_emacs_search_bindings(get_search_state=None):
         """
         search_control = event.cli.focus.focussed_control
         prev_control = event.cli.focus.previous_focussed_control
+        search_state = prev_control.search_state
 
         # Update search state.
         if search_control.buffer.text:
-            get_search_state(event.cli).text = search_control.buffer.text
+            search_state.text = search_control.buffer.text
 
         # Apply search.
-        prev_control.buffer.apply_search(get_search_state(event.cli), include_current_position=True)
+        prev_control.buffer.apply_search(search_state, include_current_position=True)
 
         # Add query to history of search line.
         search_control.buffer.append_to_history()
@@ -417,15 +413,16 @@ def load_emacs_search_bindings(get_search_state=None):
     @handle(Keys.ControlR, filter= ~is_searching&control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
+        search_state = control.search_state
 
-        get_search_state(event.cli).direction = IncrementalSearchDirection.BACKWARD
+        search_state.direction = IncrementalSearchDirection.BACKWARD
         event.cli.focussed_control = control.search_buffer_control
 
     @handle(Keys.ControlS, filter= ~is_searching&control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
 
-        get_search_state(event.cli).direction = IncrementalSearchDirection.FORWARD
+        search_state.direction = IncrementalSearchDirection.FORWARD
         event.cli.focussed_control = control.search_buffer_control
 
     def incremental_search(cli, direction, count=1):
@@ -434,9 +431,9 @@ def load_emacs_search_bindings(get_search_state=None):
 
         search_control = cli.focus.focussed_control
         prev_control = cli.focus.previous_focussed_control
+        search_state = prev_control.search_state
 
         # Update search_state.
-        search_state = get_search_state(cli)
         direction_changed = search_state.direction != direction
 
         search_state.text = search_control.buffer.text

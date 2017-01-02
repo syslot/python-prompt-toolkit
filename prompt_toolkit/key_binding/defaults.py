@@ -18,7 +18,6 @@ __all__ = (
 
 
 def load_key_bindings(
-        get_search_state=None,
         enable_abort_and_exit_bindings=False,
         enable_system_bindings=False,
         enable_search=False,
@@ -39,9 +38,6 @@ def load_key_bindings(
         Emacs or Vi.)
     :param enable_auto_suggest_bindings: Filter to enable fish-style suggestions.
     """
-
-    assert get_search_state is None or callable(get_search_state)
-
     # Accept both Filters and booleans as input.
     enable_abort_and_exit_bindings = to_cli_filter(enable_abort_and_exit_bindings)
     enable_system_bindings = to_cli_filter(enable_system_bindings)
@@ -67,7 +63,7 @@ def load_key_bindings(
         ConditionalRegistry(load_emacs_open_in_editor_bindings(),
                             enable_open_in_editor),
 
-        ConditionalRegistry(load_emacs_search_bindings(get_search_state=get_search_state),
+        ConditionalRegistry(load_emacs_search_bindings(),
                             enable_search),
 
         ConditionalRegistry(load_emacs_system_bindings(),
@@ -77,12 +73,12 @@ def load_key_bindings(
                             enable_extra_page_navigation),
 
         # Load Vi bindings.
-        load_vi_bindings(get_search_state=get_search_state),
+        load_vi_bindings(),
 
         ConditionalRegistry(load_vi_open_in_editor_bindings(),
                             enable_open_in_editor),
 
-        ConditionalRegistry(load_vi_search_bindings(get_search_state=get_search_state),
+        ConditionalRegistry(load_vi_search_bindings(),
                             enable_search),
 
         ConditionalRegistry(load_vi_system_bindings(),

@@ -69,7 +69,7 @@ class Application(object):
     :param mouse_support: (:class:`~prompt_toolkit.filters.CLIFilter` or
         boolean). When True, enable mouse support.
     :param paste_mode: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
-    :param ignore_case: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
+#    :param ignore_case: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
     :param editing_mode: :class:`~prompt_toolkit.enums.EditingMode`.
 
     Callbacks (all of these should accept a
@@ -94,7 +94,9 @@ class Application(object):
                  use_alternate_screen=False, mouse_support=False,
                  get_title=None,
 
-                 paste_mode=False, ignore_case=False, editing_mode=EditingMode.EMACS,
+                 paste_mode=False,
+#                 ignore_case=False,
+                 editing_mode=EditingMode.EMACS,
                  erase_when_done=False,
                  reverse_vi_search_direction=False,
                  focussed_control=None,
@@ -104,7 +106,7 @@ class Application(object):
                  on_render=None, on_invalidate=None):
 
         paste_mode = to_cli_filter(paste_mode)
-        ignore_case = to_cli_filter(ignore_case)
+#        ignore_case = to_cli_filter(ignore_case)
         mouse_support = to_cli_filter(mouse_support)
         reverse_vi_search_direction = to_cli_filter(reverse_vi_search_direction)
 
@@ -118,7 +120,7 @@ class Application(object):
         assert isinstance(use_alternate_screen, bool)
         assert get_title is None or callable(get_title)
         assert isinstance(paste_mode, CLIFilter)
-        assert isinstance(ignore_case, CLIFilter)
+#        assert isinstance(ignore_case, CLIFilter)
         assert isinstance(editing_mode, six.string_types)
         assert on_input_timeout is None or callable(on_input_timeout)
         assert style is None or isinstance(style, Style)
@@ -169,7 +171,7 @@ class Application(object):
         self.get_title = get_title
 
         self.paste_mode = paste_mode
-        self.ignore_case = ignore_case
+#        self.ignore_case = ignore_case
         self.editing_mode = editing_mode
         self.erase_when_done = erase_when_done
         self.reverse_vi_search_direction = reverse_vi_search_direction

@@ -1,5 +1,6 @@
-from .enums import IncrementalSearchDirection
+from .enums import SearchDirection
 from .filters import to_simple_filter
+import six
 
 __all__ = (
     'SearchState',
@@ -12,7 +13,10 @@ class SearchState(object):
     """
     __slots__ = ('text', 'direction', 'ignore_case')
 
-    def __init__(self, text='', direction=IncrementalSearchDirection.FORWARD, ignore_case=False):
+    def __init__(self, text='', direction=SearchDirection.FORWARD, ignore_case=False):
+        assert isinstance(text, six.text_type)
+        assert direction in (SearchDirection.FORWARD, SearchDirection.BACKWARD)
+
         ignore_case = to_simple_filter(ignore_case)
 
         self.text = text
@@ -28,9 +32,9 @@ class SearchState(object):
         Create a new SearchState where backwards becomes forwards and the other
         way around.
         """
-        if self.direction == IncrementalSearchDirection.BACKWARD:
-            direction = IncrementalSearchDirection.FORWARD
+        if self.direction == SearchDirection.BACKWARD:
+            direction = SearchDirection.FORWARD
         else:
-            direction = IncrementalSearchDirection.BACKWARD
+            direction = SearchDirection.BACKWARD
 
         return SearchState(text=self.text, direction=direction, ignore_case=self.ignore_case)

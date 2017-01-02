@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 
-class IncrementalSearchDirection(object):
+class SearchDirection(object):
     FORWARD = 'FORWARD'
     BACKWARD = 'BACKWARD'
 
@@ -27,3 +27,7 @@ SYSTEM_BUFFER = 'SYSTEM_BUFFER'
 # actual text editing is possible. This buffer should also never be displayed.
 # (It will never contain any actual text.)
 DUMMY_BUFFER = 'DUMMY_BUFFER'
+
+
+# For backward compatibility:
+IncrementalSearchDirection = SearchDirection

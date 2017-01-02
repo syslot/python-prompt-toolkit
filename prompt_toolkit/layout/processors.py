@@ -99,9 +99,14 @@ class HighlightSearchProcessor(Processor):
         the search text in real time while the user is typing, instead of the
         last active search state.
     """
-    def __init__(self, preview_search=False, get_search_state=None):
+    def __init__(self, preview_search=False):
         self.preview_search = to_cli_filter(preview_search)
-        self.get_search_state = get_search_state or (lambda cli: cli.search_state)
+
+#    def _get_search_state(self, cli, buffer_control):
+#        if buffer_control.get_search_state is None:
+#            return cli.search_state
+#        else:
+#            return buffer_control.get_search_state(cli)
 
     def _get_search_text(self, cli, buffer_control):
         """
@@ -114,7 +119,8 @@ class HighlightSearchProcessor(Processor):
                 return search_buffer.text
 
         # Otherwise, take the text of the last active search.
-        return self.get_search_state(cli).text
+        return buffer_control.search_state.text
+#        return self._get_search_state(cli, buffer_control).text
 
     def apply_transformation(self, cli, buffer_control, document, lineno, source_to_display, tokens):
         search_text = self._get_search_text(cli, buffer_control)
@@ -126,7 +132,14 @@ class HighlightSearchProcessor(Processor):
             line_text = token_list_to_text(tokens)
             tokens = explode_tokens(tokens)
 
-            flags = re.IGNORECASE if cli.is_ignoring_case else 0
+            buffer_control
+            buffer_control.search_state
+            buffer_control.search_state.ignore_case
+
+            if buffer_control.search_state.ignore_case():
+                flags = re.IGNORECASE
+            else:
+                flags = 0
 
             # Get cursor column.
             if document.cursor_position_row == lineno:

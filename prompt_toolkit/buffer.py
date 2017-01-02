@@ -8,7 +8,7 @@ from .auto_suggest import AutoSuggest
 from .clipboard import ClipboardData
 from .completion import Completer, Completion, CompleteEvent
 from .document import Document
-from .enums import IncrementalSearchDirection
+from .enums import SearchDirection
 from .filters import to_simple_filter
 from .history import History, InMemoryHistory
 from .search_state import SearchState
@@ -1145,7 +1145,7 @@ class Buffer(object):
             Do search one time.
             Return (working_index, document) or `None`
             """
-            if direction == IncrementalSearchDirection.FORWARD:
+            if direction == SearchDirection.FORWARD:
                 # Try find at the current input.
                 new_index = document.find(
                    text, include_current_position=include_current_position,

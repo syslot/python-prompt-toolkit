@@ -83,8 +83,8 @@ class CommandLineInterface(object):
         self.input = input or StdinInput(sys.stdin)
 
         #: The input buffers.
-        assert isinstance(application.buffers, BufferMapping)
-        self.buffers = application.buffers
+#        assert isinstance(application.buffers, BufferMapping)
+#        self.buffers = application.buffers
 
         #: EditingMode.VI or EditingMode.EMACS
         self.editing_mode = application.editing_mode
@@ -124,8 +124,13 @@ class CommandLineInterface(object):
         self._sub_cli = None  # None or other CommandLineInterface instance.
 
         # Call `add_buffer` for each buffer.
-        for name, b in self.buffers.items():
-            self.add_buffer(name, b)
+   #     for name, b in self.buffers.items():
+   #         self.add_buffer(name, b)
+
+        #from prompt_toolkit.layout.utils import find_all_controls   ### XXX: cleanup!
+        #for ctrl in find_all_controls(self.application.layout):
+        #    if isinstance(ctrl, BufferControl):
+        #        self.add_buffer(
 
         # Events.
         self.on_buffer_changed = Event(self, application.on_buffer_changed)
@@ -173,10 +178,10 @@ class CommandLineInterface(object):
         Insert a new buffer.
         """
         assert isinstance(buffer, Buffer)
-        self.buffers[name] = buffer
+#        self.buffers[name] = buffer
 
-        if focus:
-            self.buffers.focus(name)
+#        if focus:
+#            self.buffers.focus(name)
 
         # Create asynchronous completer / auto suggestion.
         auto_suggest_function = self._create_auto_suggest_function(buffer)
@@ -319,7 +324,7 @@ class CommandLineInterface(object):
 
         # Search new search state. (Does also remember what has to be
         # highlighted.)
-        self.search_state = SearchState(ignore_case=Condition(lambda: self.is_ignoring_case))
+#        self.search_state = SearchState(ignore_case=Condition(lambda: self.is_ignoring_case))
 
         # Trigger reset event.
         self.on_reset.fire()
@@ -329,10 +334,10 @@ class CommandLineInterface(object):
         """ True when we are in paste mode. """
         return self.application.paste_mode(self)
 
-    @property
-    def is_ignoring_case(self):
-        """ True when we currently ignore casing. """
-        return self.application.ignore_case(self)
+#    @property
+#    def is_ignoring_case(self):
+#        """ True when we currently ignore casing. """
+#        return self.application.ignore_case(self)
 
     def invalidate(self):
         """
@@ -394,10 +399,10 @@ class CommandLineInterface(object):
         self.renderer.request_absolute_cursor_position()
         self._redraw()
 
-    def _load_next_buffer_indexes(self):
-        for buff, index in self._next_buffer_indexes.items():
-            if buff in self.buffers:
-                self.buffers[buff].working_index = index
+#    def _load_next_buffer_indexes(self):
+#        for buff, index in self._next_buffer_indexes.items():
+#            if buff in self.buffers:
+#                self.buffers[buff].working_index = index
 
     def _pre_run(self, pre_run=None):
         " Called during `run`. "
