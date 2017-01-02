@@ -386,9 +386,6 @@ class AppendAutoSuggestion(Processor):
     """
     Append the auto suggestion to the input.
     (The user can then press the right arrow the insert the suggestion.)
-
-    :param buffer_name: The name of the buffer from where we should take the
-        auto suggestion. If not given, we take the current buffer.
     """
     def __init__(self, token=Token.AutoSuggestion):
         self.token = token
