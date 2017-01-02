@@ -1708,7 +1708,7 @@ def load_vi_open_in_editor_bindings():
     registry = Registry()
     navigation_mode = ViMode() & ViNavigationMode()
 
-    registry.add_binding('v')(get_by_name('edit-and-execute-command'))
+    registry.add_binding('v', navigation_mode)(get_by_name('edit-and-execute-command'))
     return registry
 
 
@@ -1761,7 +1761,6 @@ def load_vi_search_bindings():
     registry = ConditionalRegistry(Registry(), ViMode())
     handle = registry.add_binding
 
-#    has_focus = filters.HasFocus(search_buffer_name)
     navigation_mode = ViNavigationMode()
     selection_mode = ViSelectionMode()
 
