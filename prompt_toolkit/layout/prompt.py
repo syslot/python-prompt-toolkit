@@ -45,7 +45,12 @@ class DefaultPrompt(Processor):
             return [(Token.Prompt, message)]
         return cls(get_message_tokens)
 
-    def apply_transformation(self, cli, document, lineno, source_to_display, tokens):
+    def apply_transformation(self, transformation_input):
+        cli = transformation_input.cli
+        lineno = transformation_input.lineno
+        source_to_display = transformation_input.source_to_display
+        tokens = transformation_input.tokens
+
         # Get text before cursor.
         if cli.is_searching:
             before = _get_isearch_tokens(cli)
@@ -82,7 +87,7 @@ class DefaultPrompt(Processor):
 
 def _get_isearch_tokens(cli):
     def before():
-        if cli.search_state.direction == SearchDirection.BACKWARD:
+        if cli.current_search_state.direction == SearchDirection.BACKWARD:
             text = 'reverse-i-search'
         else:
             text = 'i-search'

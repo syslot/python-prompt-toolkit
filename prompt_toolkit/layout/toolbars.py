@@ -10,6 +10,7 @@ from .controls import BufferControl, TokenListControl, UIControl, UIContent
 from .containers import Window, ConditionalContainer
 from .screen import Char
 from .utils import token_list_len
+from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import SEARCH_BUFFER, SYSTEM_BUFFER
 from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone
 from prompt_toolkit.token import Token
@@ -34,23 +35,23 @@ class TokenListToolbar(ConditionalContainer):
 
 
 class SystemToolbarControl(BufferControl):
-    def __init__(self):
+    def __init__(self, system_buffer):
         token = Token.Toolbar.System
 
         super(SystemToolbarControl, self).__init__(
-            buffer_name=SYSTEM_BUFFER,
+            buffer=system_buffer,
             default_char=Char(token=token),
             lexer=SimpleLexer(token=token.Text),
             input_processors=[BeforeInput.static('Shell command: ', token)],)
 
 
 class SystemToolbar(ConditionalContainer):
-    def __init__(self):
+    def __init__(self, system_buffer):
         super(SystemToolbar, self).__init__(
             content=Window(
-                SystemToolbarControl(),
+                SystemToolbarControl(system_buffer),
                 height=LayoutDimension.exact(1)),
-            filter=HasFocus(SYSTEM_BUFFER) & ~IsDone())
+            filter=HasFocus(system_buffer) & ~IsDone())
 
 
 class ArgToolbarControl(TokenListControl):
@@ -81,13 +82,15 @@ class SearchToolbarControl(BufferControl):
     """
     :param vi_mode: Display '/' and '?' instead of I-search.
     """
-    def __init__(self, vi_mode=False):
+    def __init__(self, search_buffer, vi_mode=False):
+        assert isinstance(search_buffer, Buffer)
+
         token = Token.Toolbar.Search
 
         def get_before_input(cli):
             if not cli.is_searching:
                 text = ''
-            elif cli.search_state.direction == SearchDirection.BACKWARD:
+            elif cli.current_search_state.direction == SearchDirection.BACKWARD:
                 text = ('?' if vi_mode else 'I-search backward: ')
             else:
                 text = ('/' if vi_mode else 'I-search: ')
@@ -95,19 +98,20 @@ class SearchToolbarControl(BufferControl):
             return [(token, text)]
 
         super(SearchToolbarControl, self).__init__(
-            buffer_name=SEARCH_BUFFER,
+            buffer=search_buffer,
             input_processors=[BeforeInput(get_before_input)],
             default_char=Char(token=token),
             lexer=SimpleLexer(token=token.Text))
 
 
-class SearchToolbar(ConditionalContainer):  # FIXME
-    def __init__(self, vi_mode=False):
+class SearchToolbar(ConditionalContainer):
+    def __init__(self, search_buffer, vi_mode=False):
+        control = SearchToolbarControl(search_buffer, vi_mode=vi_mode)
         super(SearchToolbar, self).__init__(
-            content=Window(
-                SearchToolbarControl(vi_mode=vi_mode),
-                height=LayoutDimension.exact(1)),
+            content=Window(control, height=LayoutDimension.exact(1)),
             filter=IsSearching() & ~IsDone())
+
+        self.control = control
 
 
 class CompletionsToolbarControl(UIControl):

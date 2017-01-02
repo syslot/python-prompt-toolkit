@@ -3,9 +3,10 @@ Filters that accept a `CommandLineInterface` as argument.
 """
 from __future__ import unicode_literals
 from .base import Filter
+from prompt_toolkit.cache import memoized
 from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.key_binding.vi_state import InputMode as ViInputMode
-from prompt_toolkit.cache import memoized
+import six
 
 __all__ = (
     'HasArg',
@@ -47,11 +48,22 @@ class HasFocus(Filter):
     """
     Enable when this buffer has the focus.
     """
-    def __init__(self, buffer_name):
-        self.buffer_name = buffer_name
+    def __init__(self, value):
+        from prompt_toolkit.buffer import Buffer
+        assert isinstance(value, (six.text_type, Buffer)), value
+        self.value = value
+
+        if isinstance(value, six.text_type):
+            def __call__(cli):
+                return cli.current_buffer.name == value
+        else:
+            def __call__(cli):
+                return cli.current_buffer == value
+
+        self.__call__ = __call__
 
     def __call__(self, cli):
-        return cli.current_buffer.name == self.buffer_name
+        pass
 
     def __repr__(self):
         return 'HasFocus(%r)' % self.buffer_name
