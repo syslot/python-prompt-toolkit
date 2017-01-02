@@ -430,7 +430,7 @@ def load_vi_bindings(get_search_state=None):
         if b.complete_state:
             b.complete_next()
         else:
-            event.cli.start_completion(select_first=True)
+            b.start_completion(select_first=True)
 
     @handle(Keys.ControlP, filter=insert_mode)
     def _(event):
@@ -442,7 +442,7 @@ def load_vi_bindings(get_search_state=None):
         if b.complete_state:
             b.complete_previous()
         else:
-            event.cli.start_completion(select_last=True)
+            b.start_completion(select_last=True)
 
     @handle(Keys.ControlY, filter=insert_mode)
     def _(event):

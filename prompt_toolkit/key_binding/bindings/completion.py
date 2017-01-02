@@ -25,7 +25,7 @@ def generate_completions(event):
     if b.complete_state:
         b.complete_next()
     else:
-        event.cli.start_completion(insert_common_part=True, select_first=False)
+        b.start_completion(insert_common_part=True, select_first=False)
 
 
 def display_completions_like_readline(event):

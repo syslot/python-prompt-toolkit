@@ -70,7 +70,7 @@ c1 = CustomControl('x')
 c2 = CustomControl('o')
 
 search = Buffer(eventloop=loop)
-b = Buffer(eventloop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=True)
+b = Buffer(eventloop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=False)
 
 input_processors = [
     HighlightSearchProcessor(preview_search=True),

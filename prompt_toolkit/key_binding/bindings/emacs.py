@@ -266,7 +266,7 @@ def load_emacs_bindings():
         if b.complete_state:
             b.complete_next()
         else:
-            event.cli.start_completion(select_first=True)
+            b.start_completion(select_first=True)
 
     @handle(Keys.ControlC, '>', filter=has_selection)
     def _(event):
