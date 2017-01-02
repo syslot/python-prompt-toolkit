@@ -123,17 +123,8 @@ class CommandLineInterface(object):
         # Pointer to sub CLI. (In chain of CLI instances.)
         self._sub_cli = None  # None or other CommandLineInterface instance.
 
-        # Call `add_buffer` for each buffer.
-   #     for name, b in self.buffers.items():
-   #         self.add_buffer(name, b)
-
-        #from prompt_toolkit.layout.utils import find_all_controls   ### XXX: cleanup!
-        #for ctrl in find_all_controls(self.application.layout):
-        #    if isinstance(ctrl, BufferControl):
-        #        self.add_buffer(
-
         # Events.
-        self.on_buffer_changed = Event(self, application.on_buffer_changed)
+#        self.on_buffer_changed = Event(self, application.on_buffer_changed)
         self.on_initialize = Event(self, application.on_initialize)
         self.on_input_timeout = Event(self, application.on_input_timeout)
         self.on_invalidate = Event(self, application.on_invalidate)
@@ -173,68 +164,21 @@ class CommandLineInterface(object):
         " Set `UIControl` to receive the focus. "  # This is a shortcut.
         self.application.focus.focussed_control = ui_control
 
-    def add_buffer(self, name, buffer, focus=False):
-        """
-        Insert a new buffer.
-        """
-        assert isinstance(buffer, Buffer)
-#        self.buffers[name] = buffer
-
-#        if focus:
-#            self.buffers.focus(name)
-
-        # Create asynchronous completer / auto suggestion.
-        auto_suggest_function = self._create_auto_suggest_function(buffer)
-        completer_function = self._create_async_completer(buffer)
-        self._async_completers[name] = completer_function
-
-        # Complete/suggest on text insert.
-        def create_on_insert_handler():
-            """
-            Wrapper around the asynchronous completer and auto suggestion, that
-            ensures that it's only called while typing if the
-            `complete_while_typing` filter is enabled.
-            """
-            def on_text_insert(_):
-                # Only complete when "complete_while_typing" is enabled.
-                if buffer.completer and buffer.complete_while_typing():
-                    completer_function()
-
-                # Call auto_suggest.
-                if buffer.auto_suggest:
-                    auto_suggest_function()
-
-            return on_text_insert
-
-        buffer.on_text_insert += create_on_insert_handler()
-
-        def buffer_changed(_):
-            """
-            When the text in a buffer changes.
-            (A paste event is also a change, but not an insert. So we don't
-            want to do autocompletions in this case, but we want to propagate
-            the on_buffer_changed event.)
-            """
-            # Trigger on_buffer_changed.
-            self.on_buffer_changed.fire()
-
-        buffer.on_text_changed += buffer_changed
-
-    def start_completion(self, buffer_name=None, select_first=False,
-                         select_last=False, insert_common_part=False,
-                         complete_event=None):
-        """
-        Start asynchronous autocompletion of this buffer.
-        (This will do nothing if a previous completion was still in progress.)
-        """
-        buffer_name = buffer_name or self.current_buffer_name
-        completer = self._async_completers.get(buffer_name)
-
-        if completer:
-            completer(select_first=select_first,
-                      select_last=select_last,
-                      insert_common_part=insert_common_part,
-                      complete_event=CompleteEvent(completion_requested=True))
+#    def start_completion(self, buffer_name=None, select_first=False,
+#                         select_last=False, insert_common_part=False,
+#                         complete_event=None):
+#        """
+#        Start asynchronous autocompletion of this buffer.
+#        (This will do nothing if a previous completion was still in progress.)
+#        """
+#        buffer_name = buffer_name or self.current_buffer_name
+#        completer = self._async_completers.get(buffer_name)
+#
+#        if completer:
+#            completer(select_first=select_first,
+#                      select_last=select_last,
+#                      insert_common_part=insert_common_part,
+#                      complete_event=CompleteEvent(completion_requested=True))
 
 #    @property
 #    def current_buffer_name(self):
@@ -256,7 +200,7 @@ class CommandLineInterface(object):
         if isinstance(ui_control, BufferControl):
             return ui_control.buffer
         else:
-            return Buffer()  # Dummy buffer.
+            return Buffer(eventloop=self.eventloop)  # Dummy buffer.
 
 #        return self.buffers.current(self)
 
@@ -321,10 +265,6 @@ class CommandLineInterface(object):
         self.input_processor.reset()
         self.layout.reset()
         self.vi_state.reset()
-
-        # Search new search state. (Does also remember what has to be
-        # highlighted.)
-#        self.search_state = SearchState(ignore_case=Condition(lambda: self.is_ignoring_case))
 
         # Trigger reset event.
         self.on_reset.fire()
@@ -849,150 +789,6 @@ class CommandLineInterface(object):
     @property
     def is_done(self):
         return self.is_exiting or self.is_aborting or self.is_returning
-
-    def _create_async_completer(self, buffer):
-        """
-        Create function for asynchronous autocompletion.
-        (Autocomplete in other thread.)
-        """
-        complete_thread_running = [False]  # By ref.
-
-        def completion_does_nothing(document, completion):
-            """
-            Return `True` if applying this completion doesn't have any effect.
-            (When it doesn't insert any new text.
-            """
-            text_before_cursor = document.text_before_cursor
-            replaced_text = text_before_cursor[
-                len(text_before_cursor) + completion.start_position:]
-            return replaced_text == completion.text
-
-        def async_completer(select_first=False, select_last=False,
-                            insert_common_part=False, complete_event=None):
-            document = buffer.document
-            complete_event = complete_event or CompleteEvent(text_inserted=True)
-
-            # Don't start two threads at the same time.
-            if complete_thread_running[0]:
-                return
-
-            # Don't complete when we already have completions.
-            if buffer.complete_state or not buffer.completer:
-                return
-
-            # Otherwise, get completions in other thread.
-            complete_thread_running[0] = True
-
-            def run():
-                completions = list(buffer.completer.get_completions(document, complete_event))
-
-                def callback():
-                    """
-                    Set the new complete_state in a safe way. Don't replace an
-                    existing complete_state if we had one. (The user could have
-                    pressed 'Tab' in the meantime. Also don't set it if the text
-                    was changed in the meantime.
-                    """
-                    complete_thread_running[0] = False
-
-                    # When there is only one completion, which has nothing to add, ignore it.
-                    if (len(completions) == 1 and
-                            completion_does_nothing(document, completions[0])):
-                        del completions[:]
-
-                    # Set completions if the text was not yet changed.
-                    if buffer.text == document.text and \
-                            buffer.cursor_position == document.cursor_position and \
-                            not buffer.complete_state:
-
-                        set_completions = True
-                        select_first_anyway = False
-
-                        # When the common part has to be inserted, and there
-                        # is a common part.
-                        if insert_common_part:
-                            common_part = get_common_complete_suffix(document, completions)
-                            if common_part:
-                                # Insert the common part, update completions.
-                                buffer.insert_text(common_part)
-                                if len(completions) > 1:
-                                    # (Don't call `async_completer` again, but
-                                    # recalculate completions. See:
-                                    # https://github.com/ipython/ipython/issues/9658)
-                                    completions[:] = [
-                                        c.new_completion_from_position(len(common_part))
-                                        for c in completions]
-                                else:
-                                    set_completions = False
-                            else:
-                                # When we were asked to insert the "common"
-                                # prefix, but there was no common suffix but
-                                # still exactly one match, then select the
-                                # first. (It could be that we have a completion
-                                # which does * expansion, like '*.py', with
-                                # exactly one match.)
-                                if len(completions) == 1:
-                                    select_first_anyway = True
-
-                        if set_completions:
-                            buffer.set_completions(
-                                completions=completions,
-                                go_to_first=select_first or select_first_anyway,
-                                go_to_last=select_last)
-                        self.invalidate()
-                    elif not buffer.complete_state:
-                        # Otherwise, restart thread.
-                        async_completer()
-
-                if self.eventloop:
-                    self.eventloop.call_from_executor(callback)
-
-            self.eventloop.run_in_executor(run)
-        return async_completer
-
-    def _create_auto_suggest_function(self, buffer):
-        """
-        Create function for asynchronous auto suggestion.
-        (AutoSuggest in other thread.)
-        """
-        suggest_thread_running = [False]  # By ref.
-
-        def async_suggestor():
-            document = buffer.document
-
-            # Don't start two threads at the same time.
-            if suggest_thread_running[0]:
-                return
-
-            # Don't suggest when we already have a suggestion.
-            if buffer.suggestion or not buffer.auto_suggest:
-                return
-
-            # Otherwise, get completions in other thread.
-            suggest_thread_running[0] = True
-
-            def run():
-                suggestion = buffer.auto_suggest.get_suggestion(self, buffer, document)
-
-                def callback():
-                    suggest_thread_running[0] = False
-
-                    # Set suggestion only if the text was not yet changed.
-                    if buffer.text == document.text and \
-                            buffer.cursor_position == document.cursor_position:
-
-                        # Set suggestion and redraw interface.
-                        buffer.suggestion = suggestion
-                        self.invalidate()
-                    else:
-                        # Otherwise, restart thread.
-                        async_suggestor()
-
-                if self.eventloop:
-                    self.eventloop.call_from_executor(callback)
-
-            self.eventloop.run_in_executor(run)
-        return async_suggestor
 
     def stdout_proxy(self, raw=False):
         """

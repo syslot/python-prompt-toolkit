@@ -53,12 +53,13 @@ class CustomControl(UIControl):
 
         return UIControlKeyBindings(registry)
 
+loop = create_eventloop()
 
 c1 = CustomControl('x')
 c2 = CustomControl('o')
 
-search = Buffer()
-b = Buffer(is_multiline=True)
+search = Buffer(eventloop=loop)
+b = Buffer(eventloop=loop,is_multiline=True)
 
 input_processors = [
     HighlightSearchProcessor(preview_search=True),
@@ -117,13 +118,12 @@ application = Application(
 #    -------------------
 
 def run():
-    eventloop = create_eventloop()
 
     try:
-        cli = CommandLineInterface(application=application, eventloop=eventloop)
+        cli = CommandLineInterface(application=application, eventloop=loop)
         cli.run()
     finally:
-        eventloop.close()
+        loop.close()
 
 if __name__ == '__main__':
     run()

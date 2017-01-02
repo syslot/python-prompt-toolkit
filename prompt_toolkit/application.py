@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from .buffer import Buffer, AcceptAction
+#from .buffer import Buffer, AcceptAction
 from .buffer_mapping import BufferMapping
 from .clipboard import Clipboard, InMemoryClipboard
 from .enums import DEFAULT_BUFFER, EditingMode
@@ -48,8 +48,8 @@ class Application(object):
     any other I/O backend.
 
     :param layout: A :class:`~prompt_toolkit.layout.containers.Container` instance.
-    :param buffer: A :class:`~prompt_toolkit.buffer.Buffer` instance for the default buffer.
-    :param initial_focussed_buffer: Name of the buffer that is focussed during start-up.
+#    :param buffer: A :class:`~prompt_toolkit.buffer.Buffer` instance for the default buffer.
+#    :param initial_focussed_buffer: Name of the buffer that is focussed during start-up.
     :param key_bindings_registry:
         :class:`~prompt_toolkit.key_binding.registry.BaseRegistry` instance for
         the key bindings.
@@ -80,14 +80,15 @@ class Application(object):
     :param on_start: Called when reading input starts.
     :param on_stop: Called when reading input ends.
     :param on_reset: Called during reset.
-    :param on_buffer_changed: Called when the content of a buffer has been changed.
+#    :param on_buffer_changed: Called when the content of a buffer has been changed.
     :param on_initialize: Called after the
         :class:`~prompt_toolkit.interface.CommandLineInterface` initializes.
     :param on_render: Called right after rendering.
     :param on_invalidate: Called when the UI has been invalidated.
     """
-    def __init__(self, layout=None, buffer=None, buffers=None,
-                 initial_focussed_buffer=DEFAULT_BUFFER,
+    def __init__(self, layout=None,
+#            buffer=None, buffers=None,
+#                 initial_focussed_buffer=DEFAULT_BUFFER,
                  style=None,
                  key_bindings_registry=None, clipboard=None,
                  on_abort=AbortAction.RAISE_EXCEPTION, on_exit=AbortAction.RAISE_EXCEPTION,
@@ -102,7 +103,8 @@ class Application(object):
                  focussed_control=None,
 
                  on_input_timeout=None, on_start=None, on_stop=None,
-                 on_reset=None, on_initialize=None, on_buffer_changed=None,
+                 on_reset=None, on_initialize=None,
+#                 on_buffer_changed=None,
                  on_render=None, on_invalidate=None):
 
         paste_mode = to_cli_filter(paste_mode)
@@ -111,8 +113,8 @@ class Application(object):
         reverse_vi_search_direction = to_cli_filter(reverse_vi_search_direction)
 
         assert layout is None or isinstance(layout, Container)
-        assert buffer is None or isinstance(buffer, Buffer)
-        assert buffers is None or isinstance(buffers, (dict, BufferMapping))
+#        assert buffer is None or isinstance(buffer, Buffer)
+#        assert buffers is None or isinstance(buffers, (dict, BufferMapping))
         assert key_bindings_registry is None or isinstance(key_bindings_registry, BaseRegistry)
         assert clipboard is None or isinstance(clipboard, Clipboard)
         assert on_abort in AbortAction._all
@@ -130,29 +132,29 @@ class Application(object):
         assert on_start is None or callable(on_start)
         assert on_stop is None or callable(on_stop)
         assert on_reset is None or callable(on_reset)
-        assert on_buffer_changed is None or callable(on_buffer_changed)
+#        assert on_buffer_changed is None or callable(on_buffer_changed)
         assert on_initialize is None or callable(on_initialize)
         assert on_render is None or callable(on_render)
         assert on_invalidate is None or callable(on_invalidate)
 
         self.layout = layout or Window(BufferControl())
 
-        # Make sure that the 'buffers' dictionary is a BufferMapping.
-        # NOTE: If no buffer is given, we create a default Buffer, with IGNORE as
-        #       default accept_action. This is what makes sense for most users
-        #       creating full screen applications. Doing nothing is the obvious
-        #       default. Those creating a REPL would use the shortcuts module that
-        #       passes in RETURN_DOCUMENT.
-        self.buffer = buffer or Buffer(accept_action=AcceptAction.IGNORE)
-        if not buffers or not isinstance(buffers, BufferMapping):
-            self.buffers = BufferMapping(buffers, initial=initial_focussed_buffer)
-        else:
-            self.buffers = buffers
+#        # Make sure that the 'buffers' dictionary is a BufferMapping.
+#        # NOTE: If no buffer is given, we create a default Buffer, with IGNORE as
+#        #       default accept_action. This is what makes sense for most users
+#        #       creating full screen applications. Doing nothing is the obvious
+#        #       default. Those creating a REPL would use the shortcuts module that
+#        #       passes in RETURN_DOCUMENT.
+#        self.buffer = buffer or Buffer(accept_action=AcceptAction.IGNORE)
+#        if not buffers or not isinstance(buffers, BufferMapping):
+#            self.buffers = BufferMapping(buffers, initial=initial_focussed_buffer)
+#        else:
+#            self.buffers = buffers
+#
+#        if buffer:
+#            self.buffers[DEFAULT_BUFFER] = buffer
 
-        if buffer:
-            self.buffers[DEFAULT_BUFFER] = buffer
-
-        self.initial_focussed_buffer = initial_focussed_buffer
+#        self.initial_focussed_buffer = initial_focussed_buffer
 
         self.style = style or DEFAULT_STYLE
 
@@ -186,7 +188,7 @@ class Application(object):
         self.on_stop = on_stop or dummy_handler
         self.on_reset = on_reset or dummy_handler
         self.on_initialize = on_initialize or dummy_handler
-        self.on_buffer_changed = on_buffer_changed or dummy_handler
+#        self.on_buffer_changed = on_buffer_changed or dummy_handler
         self.on_render = on_render or dummy_handler
         self.on_invalidate = on_invalidate or dummy_handler
 
