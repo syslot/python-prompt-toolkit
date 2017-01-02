@@ -428,8 +428,6 @@ class BufferControl(UIControl):
     :param input_processors: list of :class:`~prompt_toolkit.layout.processors.Processor`.
     :param lexer: :class:`~prompt_toolkit.layout.lexers.Lexer` instance for syntax highlighting.
     :param preview_search: `bool` or `CLIFilter`: Show search while typing.
-#    :param get_search_state: Callable that takes a CommandLineInterface and
-#        returns the SearchState to be used. (If not CommandLineInterface.search_state.)
     :param get_search_state: Callable that returns the SearchState to be used.
     :param buffer: The `Buffer` object to be displayed.
     :param default_char: :class:`.Char` instance to use to fill the background. This is
@@ -687,7 +685,6 @@ class BufferControl(UIControl):
         position = mouse_event.position
 
         # Focus buffer when clicked.
-#        if self.has_focus(cli):
         if cli.focussed_control == self:
             if self._last_get_processed_line:
                 processed_line = self._last_get_processed_line(position.y)
@@ -733,7 +730,6 @@ class BufferControl(UIControl):
                 # up event will be received at the point where this widget is
                 # focussed and be handled anyway.)
                 cli.focussed_control = self
-#                cli.focus(self.buffer_name)
             else:
                 return NotImplemented
 

@@ -200,23 +200,11 @@ class CommandLineInterface(object):
         else:
             return SearchState()  # Dummy search state.  (Don't return None!)
 
-#    def focus(self, buffer_name):
-#        """
-#        Focus the buffer with the given name on the focus stack.
-#        """
-#        self.buffers.focus(self, buffer_name)
-#
 #    def push_focus(self, buffer_name):
 #        """
 #        Push to the focus stack.
 #        """
 #        self.buffers.push_focus(self, buffer_name)
-#
-#    def pop_focus(self):
-#        """
-#        Pop from the focus stack.
-#        """
-#        self.buffers.pop_focus(self)
 
     @property
     def terminal_title(self):
