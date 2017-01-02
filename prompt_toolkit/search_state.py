@@ -12,17 +12,19 @@ class SearchState(object):
     """
     A search 'query'.
     """
-    __slots__ = ('text', 'direction', 'ignore_case')
+    __slots__ = ('text', 'direction', 'ignore_case', 'incremental')
 
-    def __init__(self, text='', direction=SearchDirection.FORWARD, ignore_case=False):
+    def __init__(self, text='', direction=SearchDirection.FORWARD, ignore_case=False, incremental=True):
         assert isinstance(text, six.text_type)
         assert direction in (SearchDirection.FORWARD, SearchDirection.BACKWARD)
+        assert isinstance(incremental, bool)
 
         ignore_case = to_simple_filter(ignore_case)
 
         self.text = text
         self.direction = direction
         self.ignore_case = ignore_case
+        self.incremental = incremental
 
     def __repr__(self):
         return '%s(%r, direction=%r, ignore_case=%r)' % (
