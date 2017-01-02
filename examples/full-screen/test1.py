@@ -102,7 +102,7 @@ registry = load_key_bindings(enable_search=True)  # Start with the `KeyBindingMa
 def _(event):
     event.cli.set_return_value(None)
 
-@registry.add_binding(Keys.Tab, eager=True)
+@registry.add_binding(Keys.ControlN, eager=True)
 def _(event):
     " Change focus. "
     cli = event.cli
