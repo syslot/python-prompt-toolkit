@@ -15,7 +15,7 @@ from .screen import Point, Char
 import math
 
 __all__ = (
-    'CompletionsMenu',
+    'CompletionsMenu',  # XXX: rename to CompletionMenu
     'MultiColumnCompletionsMenu',
 )
 
