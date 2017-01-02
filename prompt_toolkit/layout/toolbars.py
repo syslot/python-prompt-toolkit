@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from ..enums import IncrementalSearchDirection
+from ..enums import SearchDirection
 
 from .processors import BeforeInput
 
@@ -87,7 +87,7 @@ class SearchToolbarControl(BufferControl):
         def get_before_input(cli):
             if not cli.is_searching:
                 text = ''
-            elif cli.search_state.direction == IncrementalSearchDirection.BACKWARD:
+            elif cli.search_state.direction == SearchDirection.BACKWARD:
                 text = ('?' if vi_mode else 'I-search backward: ')
             else:
                 text = ('/' if vi_mode else 'I-search: ')

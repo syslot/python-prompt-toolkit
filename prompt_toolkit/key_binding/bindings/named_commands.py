@@ -4,7 +4,7 @@ Key bindings which are also known by GNU readline by the given names.
 See: http://www.delorie.com/gnu/docs/readline/rlman_13.html
 """
 from __future__ import unicode_literals
-from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER
+from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER
 from prompt_toolkit.selection import PasteMode
 from six.moves import range
 import six
@@ -166,8 +166,11 @@ def reverse_search_history(event):
     Search backward starting at the current line and moving `up' through
     the history as necessary. This is an incremental search.
     """
-    event.cli.current_search_state.direction = IncrementalSearchDirection.BACKWARD
-    event.cli.push_focus(SEARCH_BUFFER)
+    control = event.cli.focus.focussed_control
+
+    if control.search_buffer_control:
+        event.cli.current_search_state.direction = SearchDirection.BACKWARD
+        event.cli.focussed_control = control.search_buffer_control
 
 
 #

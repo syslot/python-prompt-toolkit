@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 from six import text_type
 
-from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER
+from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER
 from prompt_toolkit.token import Token
 
 from .utils import token_list_len
@@ -82,7 +82,7 @@ class DefaultPrompt(Processor):
 
 def _get_isearch_tokens(cli):
     def before():
-        if cli.search_state.direction == IncrementalSearchDirection.BACKWARD:
+        if cli.search_state.direction == SearchDirection.BACKWARD:
             text = 'reverse-i-search'
         else:
             text = 'i-search'

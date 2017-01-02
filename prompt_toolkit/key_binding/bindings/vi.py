@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 from prompt_toolkit.buffer import ClipboardData, indent, unindent, reshape_text
 from prompt_toolkit.document import Document
-from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
+from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
 from prompt_toolkit.filters import Filter, Condition, HasArg, Always, IsReadOnly, IsSearching, ControlIsSearchable
 from prompt_toolkit.filters.cli import ViNavigationMode, ViInsertMode, ViInsertMultipleMode, ViReplaceMode, ViSelectionMode, ViWaitingForTextObjectMode, ViDigraphMode, ViMode
 from prompt_toolkit.key_binding.digraphs import DIGRAPHS
@@ -871,7 +871,7 @@ def load_vi_bindings():
         search_state = event.cli.current_search_state
 
         search_state.text = b.document.get_word_under_cursor()
-        search_state.direction = IncrementalSearchDirection.BACKWARD
+        search_state.direction = SearchDirection.BACKWARD
 
         b.apply_search(search_state, count=event.arg,
                        include_current_position=False)
@@ -885,7 +885,7 @@ def load_vi_bindings():
         search_state = event.cli.current_search_state
 
         search_state.text = b.document.get_word_under_cursor()
-        search_state.direction = IncrementalSearchDirection.FORWARD
+        search_state.direction = SearchDirection.FORWARD
 
         b.apply_search(search_state, count=event.arg,
                        include_current_position=False)
@@ -1736,7 +1736,7 @@ def load_vi_system_bindings():
         """
         event.cli.vi_state.input_mode = InputMode.NAVIGATION
         event.cli.buffers[SYSTEM_BUFFER].reset()
-        event.cli.pop_focus()
+        event.cli.focus.focus_previous()
 
     @handle(Keys.ControlJ, filter=has_focus)
     def _(event):
@@ -1750,7 +1750,7 @@ def load_vi_system_bindings():
         system_buffer.reset(append_to_history=True)
 
         # Focus previous buffer again.
-        event.cli.pop_focus()
+        event.cli.focus.focus_previous()
 
     return registry
 
@@ -1780,7 +1780,7 @@ def load_vi_search_bindings():
         search_state = control.search_state
 
         # Set the ViState.
-        search_state.direction = IncrementalSearchDirection.FORWARD
+        search_state.direction = SearchDirection.FORWARD
         event.cli.vi_state.input_mode = InputMode.INSERT
 
         # Focus search buffer.
@@ -1797,7 +1797,7 @@ def load_vi_search_bindings():
         search_state = control.search_state
 
         # Set the ViState.
-        search_state.direction = IncrementalSearchDirection.BACKWARD
+        search_state.direction = SearchDirection.BACKWARD
         event.cli.vi_state.input_mode = InputMode.INSERT
 
         # Focus search buffer.
@@ -1849,11 +1849,11 @@ def load_vi_search_bindings():
 
     @handle(Keys.ControlR, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, IncrementalSearchDirection.BACKWARD, count=event.arg)
+        incremental_search(event.cli, SearchDirection.BACKWARD, count=event.arg)
 
     @handle(Keys.ControlS, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, IncrementalSearchDirection.FORWARD, count=event.arg)
+        incremental_search(event.cli, SearchDirection.FORWARD, count=event.arg)
 
     @Condition
     def search_buffer_is_empty(cli):

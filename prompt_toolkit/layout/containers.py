@@ -1081,7 +1081,6 @@ class Window(Container):
             cli, ui_content, screen, write_position,
             sum(left_margin_widths), write_position.width - total_margin_width,
             self.vertical_scroll, self.horizontal_scroll,
-#            has_focus=self.content.has_focus(cli),
             wrap_lines=wrap_lines, highlight_lines=True,
             vertical_scroll_2=self.vertical_scroll_2,
             always_hide_cursor=self.always_hide_cursor(cli))
@@ -1185,7 +1184,6 @@ class Window(Container):
 
     def _copy_body(self, cli, ui_content, new_screen, write_position, move_x,
                    width, vertical_scroll=0, horizontal_scroll=0,
-#                   has_focus=False, wrap_lines=False, highlight_lines=False,
                    wrap_lines=False, highlight_lines=False,
                    vertical_scroll_2=0, always_hide_cursor=False):
         """

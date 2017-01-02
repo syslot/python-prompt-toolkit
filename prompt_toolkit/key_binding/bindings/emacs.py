@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
-from prompt_toolkit.enums import IncrementalSearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
+from prompt_toolkit.enums import SearchDirection, SEARCH_BUFFER, SYSTEM_BUFFER
 from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching, ControlIsSearchable
 from prompt_toolkit.completion import CompleteEvent
 
@@ -333,7 +333,7 @@ def load_emacs_system_bindings():
         Cancel system prompt.
         """
         event.cli.buffers[SYSTEM_BUFFER].reset()
-        event.cli.pop_focus()
+        event.cli.focus.focus_previous()
 
     @handle(Keys.ControlJ, filter=has_focus)
     def _(event):
@@ -345,7 +345,7 @@ def load_emacs_system_bindings():
         system_line.reset(append_to_history=True)
 
         # Focus previous buffer again.
-        event.cli.pop_focus()
+        event.cli.focus.focus_previous()
 
     return registry
 
@@ -397,14 +397,14 @@ def load_emacs_search_bindings():
         control = event.cli.focus.focussed_control
         search_state = control.search_state
 
-        search_state.direction = IncrementalSearchDirection.BACKWARD
+        search_state.direction = SearchDirection.BACKWARD
         event.cli.focussed_control = control.search_buffer_control
 
     @handle(Keys.ControlS, filter=control_is_searchable)
     def _(event):
         control = event.cli.focus.focussed_control
 
-        search_state.direction = IncrementalSearchDirection.FORWARD
+        search_state.direction = SearchDirection.FORWARD
         event.cli.focussed_control = control.search_buffer_control
 
     def incremental_search(cli, direction, count=1):
@@ -429,12 +429,12 @@ def load_emacs_search_bindings():
     @handle(Keys.ControlR, filter=is_searching)
     @handle(Keys.Up, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, IncrementalSearchDirection.BACKWARD, count=event.arg)
+        incremental_search(event.cli, SearchDirection.BACKWARD, count=event.arg)
 
     @handle(Keys.ControlS, filter=is_searching)
     @handle(Keys.Down, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, IncrementalSearchDirection.FORWARD, count=event.arg)
+        incremental_search(event.cli, SearchDirection.FORWARD, count=event.arg)
 
     return registry
 
