@@ -249,7 +249,6 @@ class Prompt(object):
         multiline = to_simple_filter(multiline)
 
         history = history or InMemoryHistory()
-        reserve_space_for_menu=(reserve_space_for_menu if completer is not None else 0)
         initial_document=Document(default)
 
         # ** Key bindings. **
@@ -435,25 +434,28 @@ class Prompt(object):
             on_abort=on_abort,
             on_exit=on_exit)
 
+        self._default_buffer =  default_buffer
         self.loop = loop
         self.reserve_space_for_menu = reserve_space_for_menu
         self.message = message
         self.get_prompt_tokens = get_prompt_tokens
         self.style = style
         self.lexer = lexer
-        self._default_buffer =  default_buffer
+        self.completer = completer
 
     def _get_default_buffer_control_height(self, cli):
         # If there is an autocompletion menu to be shown, make sure that our
         # layout has at least a minimal height in order to display it.
-        if self.reserve_space_for_menu and not cli.is_done:
+        reserve_space_for_menu = (self.reserve_space_for_menu if self.completer is not None else 0)
+
+        if reserve_space_for_menu and not cli.is_done:
             buff = self._default_buffer
 
             # Reserve the space, either when there are completions, or when
             # `complete_while_typing` is true and we expect completions very
             # soon.
             if buff.complete_while_typing() or buff.complete_state is not None:
-                return LayoutDimension(min=self.reserve_space_for_menu)
+                return LayoutDimension(min=reserve_space_for_menu)
 
         return LayoutDimension()
 

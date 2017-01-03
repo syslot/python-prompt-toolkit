@@ -132,6 +132,14 @@ class Completer(with_metaclass(ABCMeta, object)):
             yield
 
 
+class DummyCompleter(Completer):
+    """
+    A completer that doesn't return any completion.
+    """
+    def get_completions(self, document, complete_event):
+        return []
+
+
 class DynamicCompleter(Completer):
     """
     Completer class that can dynamically returns any Completer.
@@ -143,7 +151,10 @@ class DynamicCompleter(Completer):
 
     def get_completions(self, *a, **kw):
         completer = self.get_completer()
-        return completer.get_completions(*a, **kw)
+        if completer:
+            return completer.get_completions(*a, **kw)
+        else:
+            return []
 
 
 def get_common_complete_suffix(document, completions):

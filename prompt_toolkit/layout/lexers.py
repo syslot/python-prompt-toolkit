@@ -331,5 +331,5 @@ class DynamicLexer(Lexer):
         self.get_lexer = get_lexer
 
     def lex_document(self, cli, document):
-        lexer = self.get_lexer()
+        lexer = self.get_lexer() or SimpleLexer()
         return lexer.lex_document(cli, document)
