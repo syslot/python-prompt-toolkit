@@ -1083,7 +1083,8 @@ class Window(Container):
             self.vertical_scroll, self.horizontal_scroll,
             wrap_lines=wrap_lines, highlight_lines=True,
             vertical_scroll_2=self.vertical_scroll_2,
-            always_hide_cursor=self.always_hide_cursor(cli))
+            always_hide_cursor=self.always_hide_cursor(cli),
+            has_focus=cli.focussed_control == self.content)
 
         # Remember render info. (Set before generating the margins. They need this.)
         x_offset=write_position.xpos + sum(left_margin_widths)
@@ -1165,12 +1166,13 @@ class Window(Container):
                 cli, width + 1, write_position.height)
 
         for m, width in zip(self.left_margins, left_margin_widths):
-            # Create screen for margin.
-            margin_screen = render_margin(m, width)
+            if width > 0:  # (ConditionalMargin returns a zero width. -- Don't render.)
+                # Create screen for margin.
+                margin_screen = render_margin(m, width)
 
-            # Copy and shift X.
-            self._copy_margin(cli, margin_screen, screen, write_position, move_x, width)
-            move_x += width
+                # Copy and shift X.
+                self._copy_margin(cli, margin_screen, screen, write_position, move_x, width)
+                move_x += width
 
         move_x = write_position.width - sum(right_margin_widths)
 
@@ -1185,12 +1187,10 @@ class Window(Container):
     def _copy_body(self, cli, ui_content, new_screen, write_position, move_x,
                    width, vertical_scroll=0, horizontal_scroll=0,
                    wrap_lines=False, highlight_lines=False,
-                   vertical_scroll_2=0, always_hide_cursor=False):
+                   vertical_scroll_2=0, always_hide_cursor=False, has_focus=False):
         """
         Copy the UIContent into the output screen.
         """
-        has_focus = cli.focussed_control == self.content
-
         xpos = write_position.xpos + move_x
         ypos = write_position.ypos
         line_count = ui_content.line_count

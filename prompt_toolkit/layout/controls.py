@@ -439,17 +439,16 @@ class BufferControl(UIControl):
                  input_processors=None,
                  lexer=None,
                  preview_search=False,
-                 search_buffer_control=None,
+                 get_search_buffer_control=None,
                  get_search_state=None,
                  menu_position=None,
                  default_char=None,
-                 focus_on_click=False,
-                 search_ignore_case=False):
+                 focus_on_click=False):
         assert isinstance(buffer, Buffer)
         assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
         assert menu_position is None or callable(menu_position)
         assert lexer is None or isinstance(lexer, Lexer)
-        assert search_buffer_control is None or isinstance(search_buffer_control, BufferControl)
+        assert get_search_buffer_control is None or callable(get_search_buffer_control)
         assert get_search_state is None or callable(get_search_state)
         assert default_char is None or isinstance(default_char, Char)
 
@@ -476,7 +475,7 @@ class BufferControl(UIControl):
         self.menu_position = menu_position
         self.lexer = lexer or SimpleLexer()
         self.default_char = default_char or Char(token=Token.Transparent)
-        self.search_buffer_control = search_buffer_control
+        self.get_search_buffer_control = get_search_buffer_control
 
         #: Cache for the lexer.
         #: Often, due to cursor movement, undo/redo and window resizing
@@ -489,9 +488,14 @@ class BufferControl(UIControl):
         self._last_get_processed_line = None
 
     @property
+    def search_buffer_control(self):
+        if self.get_search_buffer_control is not None:
+            return self.get_search_buffer_control()
+
+    @property
     def search_buffer(self):
-        if self.search_buffer_control is not None:
-            return self.search_buffer_control.buffer
+        if self.get_search_buffer_control is not None:
+            return self.get_search_buffer_control().buffer
 
     @property
     def search_state(self):

@@ -35,6 +35,7 @@ class Focus(object):
         Set the `UIControl` to receive the focus.
         """
         assert isinstance(control, UIControl)
+        assert control in list(find_all_controls(self.layout))
 
         if control != self.focussed_control:
             self._stack.append(control)

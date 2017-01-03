@@ -66,7 +66,7 @@ class HasFocus(Filter):
         pass
 
     def __repr__(self):
-        return 'HasFocus(%r)' % self.buffer_name
+        return 'HasFocus(%r)' % self.value
 
 
 @memoized()

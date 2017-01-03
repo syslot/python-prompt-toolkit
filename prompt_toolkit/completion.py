@@ -7,6 +7,7 @@ from six import with_metaclass
 __all__ = (
     'Completion',
     'Completer',
+    'DynamicCompleter',
     'CompleteEvent',
     'get_common_complete_suffix',
 )
@@ -129,6 +130,20 @@ class Completer(with_metaclass(ABCMeta, object)):
         """
         while False:
             yield
+
+
+class DynamicCompleter(Completer):
+    """
+    Completer class that can dynamically returns any Completer.
+
+    :param get_completer: Callable that returns a :class:`.Completer` instance.
+    """
+    def __init__(self, get_completer):
+        self.get_completer = get_completer
+
+    def get_completions(self, *a, **kw):
+        completer = self.get_completer()
+        return completer.get_completions(*a, **kw)
 
 
 def get_common_complete_suffix(document, completions):

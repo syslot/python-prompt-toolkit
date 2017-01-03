@@ -21,6 +21,7 @@ __all__ = (
     'SyntaxSync',
     'SyncFromStart',
     'RegexSync',
+    'DynamicLexer',
 )
 
 
@@ -318,3 +319,17 @@ class PygmentsLexer(Lexer):
             return []
 
         return get_line
+
+
+class DynamicLexer(Lexer):
+    """
+    Lexer class that can dynamically returns any Lexer.
+
+    :param get_lexer: Callable that returns a :class:`.Lexer` instance.
+    """
+    def __init__(self, get_lexer):
+        self.get_lexer = get_lexer
+
+    def lex_document(self, cli, document):
+        lexer = self.get_lexer()
+        return lexer.lex_document(cli, document)

@@ -33,6 +33,7 @@ __all__ = (
     'HighlightMatchingBracketProcessor',
     'DisplayMultipleCursors',
     'BeforeInput',
+    'ShowArg',
     'AfterInput',
     'AppendAutoSuggestion',
     'ConditionalProcessor',
@@ -371,8 +372,27 @@ class BeforeInput(Processor):
         return cls(get_static_tokens)
 
     def __repr__(self):
-        return '%s(get_tokens=%r)' % (
-            self.__class__.__name__, self.get_tokens)
+        return 'BeforeInput(get_tokens=%r)' % (self.get_tokens, )
+
+
+class ShowArg(BeforeInput):
+    def __init__(self):
+        super(ShowArg, self).__init__(self._get_tokens)
+
+    def _get_tokens(self, cli):
+        if cli.input_processor.arg is None:
+            return []
+        else:
+            arg = cli.input_processor.arg
+
+            return [
+                (Token.Prompt.Arg, '(arg: '),
+                (Token.Prompt.Arg.Text, str(arg)),
+                (Token.Prompt.Arg, ') '),
+            ]
+
+    def __repr__(self):
+        return 'ShowArg()'
 
 
 class AfterInput(Processor):
@@ -598,19 +618,53 @@ class ReverseSearchProcessor(Processor):
     Note: This processor is meant to be applied to the BufferControl that
     contains the search buffer, it's not meant for the original input.
     """
+    _excluded_input_processors = [
+        HighlightSearchProcessor,
+        HighlightSelectionProcessor,
+        HighlightSelectionProcessor,
+        BeforeInput,
+        AfterInput,
+    ]
+
     def _get_main_buffer(self, cli, buffer_control):
         from prompt_toolkit.layout.controls import BufferControl
         prev_control = cli.focus.previous_focussed_control
         if isinstance(prev_control, BufferControl) and \
                 prev_control.search_buffer_control == buffer_control:
             return prev_control, prev_control.search_state
-        return None,None
+        return None, None
+
+    def _content(self, main_control, ti):
+        from prompt_toolkit.layout.controls import BufferControl
+
+        # Emulate the BufferControl through which we are searching.
+        # For this we filter out some of the input processors.
+        excluded_processors = tuple(self._excluded_input_processors)
+
+        def filter_processors(items):
+            for p in items:
+                if (isinstance(p, excluded_processors) or
+                    (isinstance(p, ConditionalProcessor) and
+                        isinstance(p.processor, excluded_processors))):
+                    continue
+                yield p
+
+        processors = list(filter_processors(main_control.input_processors))
+        processors.append(HighlightSearchProcessor(preview_search=True))
+
+        buffer_control = BufferControl(
+                 buffer=main_control.buffer,
+                 input_processors=processors,
+                 lexer=main_control.lexer)
+
+        return buffer_control.create_content(ti.cli, ti.width, ti.height)
+
 
     def apply_transformation(self, ti):
         main_control, search_state = self._get_main_buffer(ti.cli, ti.buffer_control)
 
         if ti.lineno == 0 and main_control:
-            content = main_control.create_content(ti.cli, ti.width, ti.height)
+            content = self._content(main_control, ti)
 
             # Get the line from the original document for this search.
             line_tokens = content.get_line(
@@ -622,7 +676,7 @@ class ReverseSearchProcessor(Processor):
                 direction_text = 'reverse-i-search'
 
             tokens_before = [(Token, '(%s)`' % direction_text)]
-            tokens_after = [(Token, "':")]
+            tokens_after = [(Token, "': ")]
             tokens = tokens_before + ti.tokens + tokens_after + line_tokens
 
             shift_position = token_list_len(tokens_before)

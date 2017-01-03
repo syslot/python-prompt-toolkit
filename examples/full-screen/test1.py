@@ -13,11 +13,9 @@ from prompt_toolkit.layout.containers import VSplit, HSplit, Window, FloatContai
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl, UIControl, UIContent, UIControlKeyBindings
 from prompt_toolkit.layout.lexers import PygmentsLexer
 from prompt_toolkit.layout.dimension import LayoutDimension as D
-from prompt_toolkit.layout.screen import Char
-from prompt_toolkit.shortcuts import create_eventloop
+from prompt_toolkit.eventloop.defaults import create_event_loop
 from prompt_toolkit.token import Token
-from prompt_toolkit.styles import style_from_dict, style_from_pygments
-from prompt_toolkit.search_state import SearchState
+from prompt_toolkit.styles import style_from_pygments
 from prompt_toolkit.layout.processors import HighlightSearchProcessor, ReverseSearchProcessor
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.contrib.completers import WordCompleter
@@ -65,7 +63,7 @@ animal_completer = WordCompleter([
 ], ignore_case=True)
 
 
-loop = create_eventloop()
+loop = create_event_loop()
 
 c1 = CustomControl('x')
 c2 = CustomControl('o')
@@ -82,12 +80,14 @@ c5 = BufferControl(buffer=search, input_processors=[ReverseSearchProcessor()])
 c3 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(HtmlLexer), search_buffer_control=c5)
 c4 = BufferControl(buffer=b, input_processors=input_processors, lexer=PygmentsLexer(CssLexer), search_buffer_control=c5)
 
-layout = FloatContainer(VSplit([
-    Window(content=c1),
-    Window(content=c2),
-    Window(content=c3),
-    Window(content=c4),
-    Window(content=c5),
+layout = FloatContainer(HSplit([
+    VSplit([
+        Window(content=c1),
+        Window(content=c2),
+        Window(content=c3),
+        Window(content=c4),
+    ]),
+    Window(content=c5, height=D.exact(1)),
 ]), [
     Float(xcursor=True,
           ycursor=True,
