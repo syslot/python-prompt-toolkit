@@ -345,7 +345,7 @@ class Prompt(object):
             completer=DynamicCompleter(lambda: self.completer),
             history=DynamicHistory(lambda: self.history),
             auto_suggest=DynamicAutoSuggest(lambda: self.auto_suggest),
-            accept_action=AcceptAction.RETURN_DOCUMENT)
+            accept_action=AcceptAction.RETURN_TEXT)
 #            initial_document=Document(default))
 
         search_buffer = Buffer(name=SEARCH_BUFFER, loop=self.loop)
@@ -495,25 +495,34 @@ class Prompt(object):
 
         return application, default_buffer, cli
 
-    def _start_auto_refresh_loop(self):
-        " Start a refresh loop. Return the stop function. "
+    def _auto_refresh_context(self):
+        " Return a context manager for the auto-refresh loop. "
         # Set up refresh interval.
-        done = [False]
-        def start_refresh_loop():
-            def run():
-                while not done[0]:
-                    time.sleep(refresh_interval)
-                    cli.invalidate()
-            t = threading.Thread(target=run)
-            t.daemon = True
-            t.start()
+        class _Refresh(object):
+            def __enter__(ctx):
+                self.done = False
 
-        def stop_refresh_loop():
-            done[0] = True
+                def run():
+                    while not self.done:
+                        time.sleep(refresh_interval)
+                        self.cli.invalidate()
 
-        if self.refresh_interval:
-            start_refresh_loop()
-        return stop_refresh_loop
+                if self.refresh_interval:
+                    t = threading.Thread(target=run)
+                    t.daemon = True
+                    t.start()
+
+            def __exit__(ctx, *a):
+                self.done = True
+
+        return _Refresh()
+
+    def _patch_context(self):
+        if self.patch_stdout:
+            return cli.patch_stdout_context(raw=True)
+        else:
+            return DummyContext()
+
 
     def prompt(self, message=None,
             patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
@@ -526,7 +535,9 @@ class Prompt(object):
             complete_while_typing=None, display_completions_in_columns=None,
             auto_suggest=None, validator=None, clipboard=None,
             mouse_support=None, get_title=None):
-
+        """
+        Display the prompt.
+        """
         # Backup original settings.
         backup = dict((name, getattr(self, name)) for name in self._fields)
 
@@ -539,20 +550,54 @@ class Prompt(object):
         if vi_mode:
             self.editing_mode = EditingMode.VI
 
-        stop_refresh = self._start_auto_refresh_loop()
-        try:
-            result = _run_application(self.cli,
-                #return_asyncio_coroutine=return_asyncio_coroutine,
-                patch_stdout=self.patch_stdout)
+        with self._auto_refresh_context():
+            with self._patch_context():
+                try:
+                    return self.cli.run()
+                            #return_asyncio_coroutine=return_asyncio_coroutine,
+                finally:
+                    # Restore original settings.
+                    for name in self._fields:
+                        setattr(self, name, backup[name])
 
-            if isinstance(result, Document):  # TODO: simplify AcceptAction.
-                result = result.text
-            return result
-        finally:
-            stop_refresh()
-            # Restore original settings.
-            for name in self._fields:
-                setattr(self, name, backup[name])
+    # 'prompt_async' is only available in Python 3.5 or newer.
+    if sys.version_info >= (3, 5):
+        exec_(textwrap.dedent('''
+    async def prompt_async(self, message=None,
+            patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
+            # When any of these arguments are passed, this value is overwritten for the current prompt.
+            lexer=None, completer=None, is_password=None,
+            key_bindings_registry=None, get_bottom_toolbar_tokens=None,
+            style=None, get_prompt_tokens=None, get_rprompt_tokens=None, multiline=None,
+            get_continuation_tokens=None, wrap_lines=None, history=None,
+            enable_history_search=None, on_abort=None, on_exit=None,
+            complete_while_typing=None, display_completions_in_columns=None,
+            auto_suggest=None, validator=None, clipboard=None,
+            mouse_support=None, get_title=None):
+        """
+        Display the prompt (run in async IO coroutine).
+        """
+        # Backup original settings.
+        backup = dict((name, getattr(self, name)) for name in self._fields)
+
+        # Take settings from 'prompt'-arguments.
+        for name in self._fields:
+            value = locals()[name]
+            if value is not None:
+                setattr(self, name, value)
+
+        if vi_mode:
+            self.editing_mode = EditingMode.VI
+
+        with self._auto_refresh_context():
+            with self._patch_context():
+                try:
+                    return await self.cli.run_async()
+                finally:
+                    # Restore original settings.
+                    for name in self._fields:
+                        setattr(self, name, backup[name])
+    '''), globals(), locals())
 
     @property
     def on_abort(self):
@@ -616,9 +661,6 @@ class Prompt(object):
         else:
             return self.get_title()
 
-    def prompt_async(self): pass
-
-
     def close(self):
         self.loop.close()
 
@@ -633,53 +675,13 @@ def prompt(*a, **kw):
 prompt.__doc__ = Prompt.prompt.__doc__
 
 
-
-def _run_application(cli, patch_stdout=False, return_asyncio_coroutine=False):
-    """
-    Run a prompt toolkit application.
-
-    :param patch_stdout: Replace ``sys.stdout`` by a proxy that ensures that
-            print statements from other threads won't destroy the prompt. (They
-            will be printed above the prompt instead.)
-    :param return_asyncio_coroutine: When True, return a asyncio coroutine. (Python >3.3)
-    """
-    # Replace stdout.
-    patch_context = cli.patch_stdout_context(raw=True) if patch_stdout else DummyContext()
-
-    # Read input and return it.
-    if return_asyncio_coroutine:
-        # Create an asyncio coroutine and call it.
-        exec_context = {'patch_context': patch_context, 'cli': cli,
-                        'Document': Document}
-        exec_(textwrap.dedent('''
-        def prompt_coro():
-            # Inline import, because it slows down startup when asyncio is not
-            # needed.
-            import asyncio
-
-            @asyncio.coroutine
-            def run():
-                with patch_context:
-                    result = yield from cli.run_async()
-
-                if isinstance(result, Document):  # Backwards-compatibility.
-                    return result.text
-                return result
-            return run()
-        '''), exec_context)
-
-        return exec_context['prompt_coro']()
-    else:
-        with patch_context:
-            return cli.run()
-
-
-def prompt_async(message='', **kwargs):
+def prompt_async(*a, **kwargs):
     """
     Similar to :func:`.prompt`, but return an asyncio coroutine instead.
     """
-    kwargs['return_asyncio_coroutine'] = True
-    return prompt(message, **kwargs)
+    loop = create_asyncio_event_loop()
+    prompt = Prompt(loop=loop)
+    return prompt.prompt_async(*a, **kw)
 
 
 def create_confirm_application(message):

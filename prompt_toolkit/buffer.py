@@ -86,9 +86,12 @@ class AcceptAction(object):
             buffer.append_to_history()
 
 
-def _return_document_handler(cli, buffer):
+def _return_document_handler(cli, buffer, _text=False):
     # Set return value.
-    cli.set_return_value(buffer.document)
+    if _text:
+        cli.set_return_value(buffer.document.text)
+    else:
+        cli.set_return_value(buffer.document)
 
     # Make sure that if we run this UI again, that we reset this buffer, next
     # time.
@@ -97,7 +100,12 @@ def _return_document_handler(cli, buffer):
     cli.pre_run_callables.append(reset_this_buffer)
 
 
+def _return_text_handler(cli, buffer):
+    return _return_document_handler(cli, buffer, _text=True)
+
+
 AcceptAction.RETURN_DOCUMENT = AcceptAction(_return_document_handler)
+AcceptAction.RETURN_TEXT = AcceptAction(_return_text_handler)
 AcceptAction.IGNORE = AcceptAction(handler=None)
 
 
