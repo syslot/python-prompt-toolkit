@@ -675,7 +675,11 @@ class ReverseSearchProcessor(Processor):
             else:
                 direction_text = 'reverse-i-search'
 
-            tokens_before = [(Token, '(%s)`' % direction_text)]
+            tokens_before = [
+                (Token.Prompt.Search, '('),
+                (Token.Prompt.Search.Text, direction_text),
+                (Token.Prompt.Search, ')`')
+            ]
             tokens_after = [(Token, "': ")]
             tokens = tokens_before + ti.tokens + tokens_after + line_tokens
 
