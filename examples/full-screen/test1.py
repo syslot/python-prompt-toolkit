@@ -68,8 +68,8 @@ loop = create_event_loop()
 c1 = CustomControl('x')
 c2 = CustomControl('o')
 
-search = Buffer(eventloop=loop)
-b = Buffer(eventloop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=False)
+search = Buffer(loop=loop)
+b = Buffer(loop=loop,is_multiline=True, completer=animal_completer, complete_while_typing=False)
 
 input_processors = None
 #[
