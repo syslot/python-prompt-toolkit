@@ -151,7 +151,18 @@ def _true(value):
 
 class Prompt(object):
     """
-    Build the Prompt application, which can be used as a GNU Readline replacement.
+    The Prompt application, which can be used as a GNU Readline replacement.
+
+    This is a wrapper around a lot of ``prompt_toolkit`` functionality and can
+    be a replacement for `raw_input`.
+
+#    If you want to keep your history across several calls, create one
+#    :class:`~prompt_toolkit.history.History` instance and pass it every time.
+
+#    :param return_asyncio_coroutine: When True, return a asyncio coroutine. (Python >3.3)
+
+
+
 
     :param message: Text to be shown before the prompt.
     :param mulitiline: Allow multiline input. Pressing enter will insert a
@@ -200,6 +211,12 @@ class Prompt(object):
         to enable mouse support.
     :param default: The default text to be shown in the input buffer. (This can
         be edited by the user.)
+    :param patch_stdout: Replace ``sys.stdout`` by a proxy that ensures that
+            print statements from other threads won't destroy the prompt. (They
+            will be printed above the prompt instead.)
+    :param true_color: When True, use 24bit colors instead of 256 colors.
+    :param refresh_interval: (number; in seconds) When given, refresh the UI
+        every so many seconds.
     """
     _fields = (
         'message', 'lexer', 'completer', 'is_password',
@@ -208,7 +225,7 @@ class Prompt(object):
         'get_continuation_tokens', 'wrap_lines', 'history',
         'enable_history_search', 'complete_while_typing', 'on_abort',
         'on_exit', 'display_completions_in_columns', 'mouse_support',
-        'auto_suggest', 'clipboard', 'get_title', 'validator')
+        'auto_suggest', 'clipboard', 'get_title', 'validator', 'patch_stdout', 'refresh_interval')
 
     def __init__(self,
             message='',
@@ -243,6 +260,9 @@ class Prompt(object):
             on_exit=AbortAction.RAISE_EXCEPTION,
             erase_when_done=False,
 
+            refresh_interval=0,
+            patch_stdout=False,
+            true_color=False,
             input=None,
             output=None):
         assert isinstance(message, text_type), 'Please provide a unicode string.'
@@ -256,7 +276,7 @@ class Prompt(object):
         # Defaults.
         loop = loop or create_event_loop()
 
-        output = output or create_output()  # XXX: true_color=true_color))
+        output = output or create_output(true_color)
         input = input or StdinInput(sys.stdin)
 
         history = history or InMemoryHistory()
@@ -475,7 +495,27 @@ class Prompt(object):
 
         return application, default_buffer, cli
 
-    def prompt(self, message=None, 
+    def _start_auto_refresh_loop(self):
+        " Start a refresh loop. Return the stop function. "
+        # Set up refresh interval.
+        done = [False]
+        def start_refresh_loop():
+            def run():
+                while not done[0]:
+                    time.sleep(refresh_interval)
+                    cli.invalidate()
+            t = threading.Thread(target=run)
+            t.daemon = True
+            t.start()
+
+        def stop_refresh_loop():
+            done[0] = True
+
+        if self.refresh_interval:
+            start_refresh_loop()
+        return stop_refresh_loop
+
+    def prompt(self, message=None,
             patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
             # When any of these arguments are passed, this value is overwritten for the current prompt.
             lexer=None, completer=None, is_password=None,
@@ -499,14 +539,17 @@ class Prompt(object):
         if vi_mode:
             self.editing_mode = EditingMode.VI
 
+        stop_refresh = self._start_auto_refresh_loop()
         try:
-            return _run_application(self.cli,
-                patch_stdout=patch_stdout,
+            result = _run_application(self.cli,
                 #return_asyncio_coroutine=return_asyncio_coroutine,
-                true_color=true_color,
-                refresh_interval=refresh_interval,
-                loop=self.loop)
+                patch_stdout=self.patch_stdout)
+
+            if isinstance(result, Document):  # TODO: simplify AcceptAction.
+                result = result.text
+            return result
         finally:
+            stop_refresh()
             # Restore original settings.
             for name in self._fields:
                 setattr(self, name, backup[name])
@@ -589,45 +632,9 @@ def prompt(*a, **kw):
     return _prompt.prompt(*a, **kw)
 prompt.__doc__ = Prompt.prompt.__doc__
 
-def _old_prompt(message='', **kwargs):
-    """
-    Get input from the user and return it.
-
-    This is a wrapper around a lot of ``prompt_toolkit`` functionality and can
-    be a replacement for `raw_input`. (or GNU readline.)
-
-    If you want to keep your history across several calls, create one
-    :class:`~prompt_toolkit.history.History` instance and pass it every time.
-
-    This function accepts many keyword arguments. Except for the following,
-    they are a proxy to the arguments of :func:`.create_prompt_application`.
-
-    :param patch_stdout: Replace ``sys.stdout`` by a proxy that ensures that
-            print statements from other threads won't destroy the prompt. (They
-            will be printed above the prompt instead.)
-    :param return_asyncio_coroutine: When True, return a asyncio coroutine. (Python >3.3)
-    :param true_color: When True, use 24bit colors instead of 256 colors.
-    :param refresh_interval: (number; in seconds) When given, refresh the UI
-        every so many seconds.
-    """
-    patch_stdout = kwargs.pop('patch_stdout', False)
-    return_asyncio_coroutine = kwargs.pop('return_asyncio_coroutine', False)
-    true_color = kwargs.pop('true_color', False)
-    refresh_interval = kwargs.pop('refresh_interval', 0)
-    eventloop = kwargs.pop('eventloop', None)
-
-    if return_asyncio_coroutine:
-        eventloop = create_asyncio_eventloop()
-    else:
-        eventloop = eventloop or create_eventloop()
-
-    application = create_prompt_application(message, eventloop, **kwargs)
 
 
-
-def _run_application(cli,
-        patch_stdout=False, return_asyncio_coroutine=False,
-        true_color=False, refresh_interval=0, loop=None):
+def _run_application(cli, patch_stdout=False, return_asyncio_coroutine=False):
     """
     Run a prompt toolkit application.
 
@@ -635,30 +642,7 @@ def _run_application(cli,
             print statements from other threads won't destroy the prompt. (They
             will be printed above the prompt instead.)
     :param return_asyncio_coroutine: When True, return a asyncio coroutine. (Python >3.3)
-    :param true_color: When True, use 24bit colors instead of 256 colors.
-    :param refresh_interval: (number; in seconds) When given, refresh the UI
-        every so many seconds.
     """
-    assert isinstance(loop, EventLoop)
-
-    # Set up refresh interval.
-    if refresh_interval:
-        done = [False]
-        def start_refresh_loop(cli):
-            def run():
-                while not done[0]:
-                    time.sleep(refresh_interval)
-                    cli.request_redraw()
-            t = threading.Thread(target=run)
-            t.daemon = True
-            t.start()
-
-        def stop_refresh_loop(cli):
-            done[0] = True
-
-        cli.on_start += start_refresh_loop
-        cli.on_stop += stop_refresh_loop
-
     # Replace stdout.
     patch_context = cli.patch_stdout_context(raw=True) if patch_stdout else DummyContext()
 
@@ -687,11 +671,7 @@ def _run_application(cli,
         return exec_context['prompt_coro']()
     else:
         with patch_context:
-            result = cli.run()
-
-        if isinstance(result, Document):  # Backwards-compatibility.
-            return result.text
-        return result
+            return cli.run()
 
 
 def prompt_async(message='', **kwargs):
