@@ -114,36 +114,6 @@ class _RPrompt(Window):
             TokenListControl(get_tokens, align_right=True))
 
 
-"""
-    Create a :class:`.Container` instance for a prompt.
-
-    :param message: Text to be used as prompt.
-    :param lexer: :class:`~prompt_toolkit.layout.lexers.Lexer` to be used for
-        the highlighting.
-    :param is_password: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
-        When True, display input as '*'.
-    :param reserve_space_for_menu: Space to be reserved for the menu. When >0,
-        make sure that a minimal height is allocated in the terminal, in order
-        to display the completion menu.
-    :param get_prompt_tokens: An optional callable that returns the tokens to be
-        shown in the menu. (To be used instead of a `message`.)
-    :param get_continuation_tokens: An optional callable that takes a
-        CommandLineInterface and width as input and returns a list of (Token,
-        text) tuples to be used for the continuation.
-    :param get_bottom_toolbar_tokens: An optional callable that returns the
-        tokens for a toolbar at the bottom.
-    :param display_completions_in_columns: `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter`. Display the completions in
-        multiple columns.
-    :param multiline: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
-        When True, prefer a layout that is more adapted for multiline input.
-        Text after newlines is automatically indented, and search/arg input is
-        shown below the input, instead of replacing the prompt.
-    :param wrap_lines: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
-        When True (the default), automatically wrap long lines instead of
-        scrolling horizontally.
-    """
-
 def _true(value):
     " Test whether `value` is True. In case of a SimpleFilter, call it. "
     return to_simple_filter(value)()
@@ -156,17 +126,11 @@ class Prompt(object):
     This is a wrapper around a lot of ``prompt_toolkit`` functionality and can
     be a replacement for `raw_input`.
 
-#    If you want to keep your history across several calls, create one
-#    :class:`~prompt_toolkit.history.History` instance and pass it every time.
-
-#    :param return_asyncio_coroutine: When True, return a asyncio coroutine. (Python >3.3)
-
-
-
-
     :param message: Text to be shown before the prompt.
-    :param mulitiline: Allow multiline input. Pressing enter will insert a
-                       newline. (This requires Meta+Enter to accept the input.)
+    :param multiline: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
+        When True, prefer a layout that is more adapted for multiline input.
+        Text after newlines is automatically indented, and search/arg input is
+        shown below the input, instead of replacing the prompt.
     :param wrap_lines: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
         When True (the default), automatically wrap long lines instead of
         scrolling horizontally.
@@ -202,6 +166,11 @@ class Prompt(object):
     :param get_bottom_toolbar_tokens: Optional callable which takes a
         :class:`~prompt_toolkit.interface.CommandLineInterface` and returns a
         list of tokens for the bottom toolbar.
+    :param get_continuation_tokens: An optional callable that takes a
+        CommandLineInterface and width as input and returns a list of (Token,
+        text) tuples to be used for the continuation.
+    :param get_prompt_tokens: An optional callable that returns the tokens to be
+        shown in the menu. (To be used instead of a `message`.)
     :param display_completions_in_columns: `bool` or
         :class:`~prompt_toolkit.filters.CLIFilter`. Display the completions in
         multiple columns.
