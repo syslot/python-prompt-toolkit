@@ -181,8 +181,8 @@ class Prompt(object):
     :param default: The default text to be shown in the input buffer. (This can
         be edited by the user.)
     :param patch_stdout: Replace ``sys.stdout`` by a proxy that ensures that
-            print statements from other threads won't destroy the prompt. (They
-            will be printed above the prompt instead.)
+        print statements from other threads won't destroy the prompt. (They
+        will be printed above the prompt instead.)
     :param true_color: When True, use 24bit colors instead of 256 colors.
     :param refresh_interval: (number; in seconds) When given, refresh the UI
         every so many seconds.
@@ -594,16 +594,19 @@ class Prompt(object):
     def _get_default_buffer_control_height(self, cli):
         # If there is an autocompletion menu to be shown, make sure that our
         # layout has at least a minimal height in order to display it.
-        reserve_space_for_menu = (self.reserve_space_for_menu if self.completer is not None else 0)
+        if self.completer is not None:
+            space = self.reserve_space_for_menu
+        else:
+            space = 0
 
-        if reserve_space_for_menu and not cli.is_done:
+        if space and not cli.is_done:
             buff = self._default_buffer
 
             # Reserve the space, either when there are completions, or when
             # `complete_while_typing` is true and we expect completions very
             # soon.
             if buff.complete_while_typing() or buff.complete_state is not None:
-                return LayoutDimension(min=reserve_space_for_menu)
+                return LayoutDimension(min=space)
 
         return LayoutDimension()
 
