@@ -15,7 +15,8 @@ possible. ::
 """
 
 from prompt_toolkit.interface import CommandLineInterface
-from prompt_toolkit.shortcuts import create_prompt_application, create_asyncio_eventloop, prompt_async
+from prompt_toolkit.shortcuts import prompt_async, Prompt
+from prompt_toolkit.eventloop.defaults import create_asyncio_event_loop
 
 import asyncio
 import sys
@@ -38,24 +39,21 @@ async def interactive_shell():
     """
     Like `interactive_shell`, but doing things manual.
     """
-    # Create an asyncio `EventLoop` object. This is a wrapper around the
-    # asyncio loop that can be passed into prompt_toolkit.
-    eventloop = create_asyncio_eventloop()
-
-    # Create interface.
-    cli = CommandLineInterface(
-        application=create_prompt_application('Say something inside the event loop: '),
-        eventloop=eventloop)
+    # Create Prompt.
+    prompt = Prompt(
+        'Say something inside the event loop: ',
+        patch_stdout=True,
+        loop=create_asyncio_event_loop(loop))
 
     # Patch stdout in something that will always print *above* the prompt when
     # something is written to stdout.
-    sys.stdout = cli.stdout_proxy()
+#    sys.stdout = prompt.cli.stdout_proxy()
 
     # Run echo loop. Read text from stdin, and reply it back.
     while True:
         try:
-            result = await cli.run_async()
-            print('You said: "{0}"'.format(result.text))
+            result = await prompt.prompt_async()
+            print('You said: "{0}"'.format(result))
         except (EOFError, KeyboardInterrupt):
             return
 

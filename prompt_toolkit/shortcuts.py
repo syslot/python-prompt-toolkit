@@ -519,14 +519,13 @@ class Prompt(object):
 
     def _patch_context(self):
         if self.patch_stdout:
-            return cli.patch_stdout_context(raw=True)
+            return self.cli.patch_stdout_context(raw=True)
         else:
             return DummyContext()
 
-
     def prompt(self, message=None,
-            patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
             # When any of these arguments are passed, this value is overwritten for the current prompt.
+            patch_stdout=None, true_color=None, refresh_interval=None, vi_mode=None,
             lexer=None, completer=None, is_password=None,
             key_bindings_registry=None, get_bottom_toolbar_tokens=None,
             style=None, get_prompt_tokens=None, get_rprompt_tokens=None, multiline=None,
@@ -564,8 +563,8 @@ class Prompt(object):
     if sys.version_info >= (3, 5):
         exec_(textwrap.dedent('''
     async def prompt_async(self, message=None,
-            patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
             # When any of these arguments are passed, this value is overwritten for the current prompt.
+            patch_stdout=None, true_color=None, refresh_interval=None, vi_mode=None,
             lexer=None, completer=None, is_password=None,
             key_bindings_registry=None, get_bottom_toolbar_tokens=None,
             style=None, get_prompt_tokens=None, get_rprompt_tokens=None, multiline=None,
