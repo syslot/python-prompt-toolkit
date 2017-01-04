@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 """
 (Python >= 3.5)
-This is an example of how to embed a CommandLineInterface inside an application
-that uses the asyncio eventloop. The ``prompt_toolkit`` library will make sure
-that when other coroutines are writing to stdout, they write above the prompt,
-not destroying the input line.
+This is an example of how to prompt inside an application that uses the asyncio
+eventloop. The ``prompt_toolkit`` library will make sure that when other
+coroutines are writing to stdout, they write above the prompt, not destroying
+the input line.
 This example does several things:
     1. It starts a simple coroutine, printing a counter to stdout every second.
     2. It starts a simple input/echo cli loop which reads from stdin.
@@ -14,8 +14,7 @@ possible. ::
     sys.stdout = cli.stdout_proxy()
 """
 
-from prompt_toolkit.interface import CommandLineInterface
-from prompt_toolkit.shortcuts import prompt_async, Prompt
+from prompt_toolkit.shortcuts import Prompt
 from prompt_toolkit.eventloop.defaults import create_asyncio_event_loop
 
 import asyncio
@@ -47,7 +46,9 @@ async def interactive_shell():
 
     # Patch stdout in something that will always print *above* the prompt when
     # something is written to stdout.
-#    sys.stdout = prompt.cli.stdout_proxy()
+    # (This is optional, when `patch_stdout=True` has been given before.)
+
+    ## sys.stdout = prompt.cli.stdout_proxy()
 
     # Run echo loop. Read text from stdin, and reply it back.
     while True:
