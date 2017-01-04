@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 from .auto_suggest import AutoSuggest
 from .cache import FastDictCache
 from .clipboard import ClipboardData
-from .completion import CompleteEvent, get_common_complete_suffix, Completer, Completion
+from .completion import CompleteEvent, get_common_complete_suffix, Completer, Completion, DummyCompleter
 from .document import Document
 from .enums import SearchDirection
 from .eventloop.base import EventLoop
@@ -223,7 +223,7 @@ class Buffer(object):
     :param read_only: :class:`~prompt_toolkit.filters.SimpleFilter`. When True,
         changes will not be allowed.
     """
-    def __init__(self, eventloop=None, completer=None, auto_suggest=None, history=None,
+    def __init__(self, loop=None, completer=None, auto_suggest=None, history=None,
                  validator=None, tempfile_suffix='', name='',
                  is_multiline=False, complete_while_typing=False,
                  enable_history_search=False, initial_document=None,
@@ -238,7 +238,7 @@ class Buffer(object):
         read_only = to_simple_filter(read_only)
 
         # Validate input.
-        assert isinstance(eventloop, EventLoop)
+        assert isinstance(loop, EventLoop)
         assert completer is None or isinstance(completer, Completer)
         assert auto_suggest is None or isinstance(auto_suggest, AutoSuggest)
         assert history is None or isinstance(history, History)
@@ -249,8 +249,8 @@ class Buffer(object):
         assert on_completions_changed is None or callable(on_completions_changed)
         assert on_suggestion_set is None or callable(on_suggestion_set)
 
-        self.eventloop = eventloop
-        self.completer = completer
+        self.loop = loop
+        self.completer = completer or DummyCompleter()
         self.auto_suggest = auto_suggest
         self.validator = validator
         self.tempfile_suffix = tempfile_suffix
@@ -1362,12 +1362,11 @@ class Buffer(object):
         Start asynchronous autocompletion of this buffer.
         (This will do nothing if a previous completion was still in progress.)
         """
-        if self._async_completer:
-            self._async_completer(
-                select_first=select_first,
-                select_last=select_last,
-                insert_common_part=insert_common_part,
-                complete_event=CompleteEvent(completion_requested=True))
+        self._async_completer(
+            select_first=select_first,
+            select_last=select_last,
+            insert_common_part=insert_common_part,
+            complete_event=CompleteEvent(completion_requested=True))
 
     def _create_async_completer(self):
         """
@@ -1462,10 +1461,10 @@ class Buffer(object):
                         # Otherwise, restart thread.
                         async_completer()
 
-                if self.eventloop:
-                    self.eventloop.call_from_executor(callback)
+                if self.loop:
+                    self.loop.call_from_executor(callback)
 
-            self.eventloop.run_in_executor(run)
+            self.loop.run_in_executor(run)
         return async_completer
 
     def _create_auto_suggest_function(self):
@@ -1506,10 +1505,10 @@ class Buffer(object):
                         # Otherwise, restart thread.
                         async_suggestor()
 
-                if self.eventloop:
-                    self.eventloop.call_from_executor(callback)
+                if self.loop:
+                    self.loop.call_from_executor(callback)
 
-            self.eventloop.run_in_executor(run)
+            self.loop.run_in_executor(run)
         return async_suggestor
 
 

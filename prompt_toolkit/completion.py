@@ -7,6 +7,7 @@ from six import with_metaclass
 __all__ = (
     'Completion',
     'Completer',
+    'DummyCompleter',
     'DynamicCompleter',
     'CompleteEvent',
     'get_common_complete_suffix',
@@ -147,6 +148,7 @@ class DynamicCompleter(Completer):
     :param get_completer: Callable that returns a :class:`.Completer` instance.
     """
     def __init__(self, get_completer):
+        assert callable(get_completer)
         self.get_completer = get_completer
 
     def get_completions(self, *a, **kw):

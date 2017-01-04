@@ -3,22 +3,14 @@ Abstraction of CLI Input.
 """
 from __future__ import unicode_literals
 
-from .utils import DummyContext, is_windows
+from ..utils import DummyContext
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 
-import io
 import os
-import sys
-
-if is_windows():
-    from .terminal.win32_input import raw_mode, cooked_mode
-else:
-    from .terminal.vt100_input import raw_mode, cooked_mode
 
 __all__ = (
     'Input',
-    'StdinInput',
     'PipeInput',
 )
 
@@ -54,44 +46,6 @@ class Input(with_metaclass(ABCMeta, object)):
         """
         Context manager that turns the input into cooked mode.
         """
-
-
-class StdinInput(Input):
-    """
-    Simple wrapper around stdin.
-    """
-    def __init__(self, stdin=None):
-        self.stdin = stdin or sys.stdin
-
-        # The input object should be a TTY.
-        assert self.stdin.isatty()
-
-        # Test whether the given input object has a file descriptor.
-        # (Idle reports stdin to be a TTY, but fileno() is not implemented.)
-        try:
-            # This should not raise, but can return 0.
-            self.stdin.fileno()
-        except io.UnsupportedOperation:
-            if 'idlelib.run' in sys.modules:
-                raise io.UnsupportedOperation(
-                    'Stdin is not a terminal. Running from Idle is not supported.')
-            else:
-                raise io.UnsupportedOperation('Stdin is not a terminal.')
-
-    def __repr__(self):
-        return 'StdinInput(stdin=%r)' % (self.stdin,)
-
-    def raw_mode(self):
-        return raw_mode(self.stdin.fileno())
-
-    def cooked_mode(self):
-        return cooked_mode(self.stdin.fileno())
-
-    def fileno(self):
-        return self.stdin.fileno()
-
-    def read(self):
-        return self.stdin.read()
 
 
 class PipeInput(Input):

@@ -22,27 +22,31 @@ In that case, study the code in this file and build your own
 from __future__ import unicode_literals
 
 #from .layout.lexers import PygmentsLexer
+from .auto_suggest import DynamicAutoSuggest
 from .buffer import Buffer, AcceptAction
+from .cache import memoized
+from .clipboard import DynamicClipboard, InMemoryClipboard
+from .completion import DynamicCompleter
 from .document import Document
 from .enums import DEFAULT_BUFFER, SEARCH_BUFFER, EditingMode, SYSTEM_BUFFER
 from .eventloop.base import EventLoop
 from .eventloop.defaults import create_event_loop, create_asyncio_event_loop
-from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, to_cli_filter, Condition
-from .history import InMemoryHistory
+from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, Condition
+from .history import InMemoryHistory, DynamicHistory
+from .input import StdinInput
 from .interface import CommandLineInterface, Application, AbortAction
 from .key_binding.defaults import load_key_bindings_for_prompt
-from .key_binding.registry import Registry
+from .key_binding.registry import Registry, DynamicRegistry
 from .keys import Keys
 from .layout import Window, HSplit, FloatContainer, Float
 from .layout.containers import ConditionalContainer
 from .layout.controls import BufferControl, TokenListControl
 from .layout.dimension import LayoutDimension
+from .layout.lexers import DynamicLexer
 from .layout.margins import PromptMargin, ConditionalMargin
 from .layout.menus import CompletionsMenu, MultiColumnCompletionsMenu
 from .layout.processors import PasswordProcessor, ConditionalProcessor, AppendAutoSuggestion, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors, BeforeInput, ReverseSearchProcessor, ShowArg
-#from .layout.prompt import DefaultPrompt
 from .layout.screen import Char
-from .layout.lexers import DynamicLexer
 from .layout.toolbars import ValidationToolbar, SystemToolbar, ArgToolbar, SearchToolbar
 from .layout.utils import explode_tokens
 from .output.defaults import create_output
@@ -50,23 +54,22 @@ from .renderer import print_tokens as renderer_print_tokens
 from .styles import DEFAULT_STYLE, Style, DynamicStyle
 from .token import Token
 from .utils import DummyContext
-from .completion import DynamicCompleter
+from .validation import DynamicValidator
 
 from six import text_type, exec_
 
 import textwrap
 import threading
 import time
+import sys
 
 __all__ = (
     'prompt',
     'prompt_async',
-    'create_confirm_application',
     'confirm',
     'print_tokens',
     'clear',
 )
-
 
 
 def _split_multiline_prompt(get_prompt_tokens):
@@ -106,9 +109,7 @@ def _split_multiline_prompt(get_prompt_tokens):
 
 class _RPrompt(Window):
     " The prompt that is displayed on the right side of the Window. "
-    def __init__(self, get_tokens=None):
-        get_tokens = get_tokens or (lambda cli: [])
-
+    def __init__(self, get_tokens):
         super(_RPrompt, self).__init__(
             TokenListControl(get_tokens, align_right=True))
 
@@ -143,14 +144,14 @@ class _RPrompt(Window):
         scrolling horizontally.
     """
 
+def _true(value):
+    " Test whether `value` is True. In case of a SimpleFilter, call it. "
+    return to_simple_filter(value)()
+
 
 class Prompt(object):
     """
-    Create an :class:`~Application` instance for a prompt.
-
-    (It is meant to cover 90% of the prompt use cases, where no extreme
-    customization is required. For more complex input, it is required to create
-    a custom :class:`~Application` instance.)
+    Build the Prompt application, which can be used as a GNU Readline replacement.
 
     :param message: Text to be shown before the prompt.
     :param mulitiline: Allow multiline input. Pressing enter will insert a
@@ -200,6 +201,15 @@ class Prompt(object):
     :param default: The default text to be shown in the input buffer. (This can
         be edited by the user.)
     """
+    _fields = (
+        'message', 'lexer', 'completer', 'is_password',
+        'key_bindings_registry', 'is_password', 'get_bottom_toolbar_tokens',
+        'style', 'get_prompt_tokens', 'get_rprompt_tokens', 'multiline',
+        'get_continuation_tokens', 'wrap_lines', 'history',
+        'enable_history_search', 'complete_while_typing', 'on_abort',
+        'on_exit', 'display_completions_in_columns', 'mouse_support',
+        'auto_suggest', 'clipboard', 'get_title', 'validator')
+
     def __init__(self,
             message='',
             loop=None,
@@ -231,9 +241,10 @@ class Prompt(object):
             key_bindings_registry=None,
             on_abort=AbortAction.RAISE_EXCEPTION,
             on_exit=AbortAction.RAISE_EXCEPTION,
-            accept_action=AcceptAction.RETURN_DOCUMENT,
             erase_when_done=False,
-            default=''):
+
+            input=None,
+            output=None):
         assert isinstance(message, text_type), 'Please provide a unicode string.'
         assert loop is None or isinstance(loop, EventLoop)
         assert get_bottom_toolbar_tokens is None or callable(get_bottom_toolbar_tokens)
@@ -242,16 +253,16 @@ class Prompt(object):
         assert not (message and get_prompt_tokens)
         assert style is None or isinstance(style, Style)
 
-        # Eventloop.
+        # Defaults.
         loop = loop or create_event_loop()
 
-        display_completions_in_columns = to_cli_filter(display_completions_in_columns)
-        multiline = to_simple_filter(multiline)
+        output = output or create_output()  # XXX: true_color=true_color))
+        input = input or StdinInput(sys.stdin)
 
         history = history or InMemoryHistory()
-        initial_document=Document(default)
+        clipboard = clipboard or InMemoryClipboard()
 
-        # ** Key bindings. **
+        # Default key bindings.
         if key_bindings_registry is None:
             key_bindings_registry = load_key_bindings_for_prompt(
                 enable_system_bindings=enable_system_bindings,
@@ -261,44 +272,64 @@ class Prompt(object):
         if vi_mode:
             editing_mode = EditingMode.VI
 
-        # Make sure that complete_while_typing is disabled when enable_history_search
-        # is enabled. (First convert to SimpleFilter, to avoid doing bitwise operations
-        # on bool objects.)
-        complete_while_typing = to_simple_filter(complete_while_typing)
-        enable_history_search = to_simple_filter(enable_history_search)
-        multiline = to_simple_filter(multiline)
+        # Store all settings in this class.
+        self.loop = loop
+        self.input = input
+        self.output = output
 
-        complete_while_typing = complete_while_typing & ~enable_history_search
+        # Store all settings in this class.
+        for name in self._fields:
+            if name not in ('on_abort', 'on_exit'):
+                value = locals()[name]
+                setattr(self, name, value)
 
-        if style is None:
-            style = DEFAULT_STYLE
+        self.application, self._default_buffer, self.cli = self._create_application(
+            editing_mode, on_abort, on_exit, erase_when_done)
 
-        multiline2 = Condition(lambda cli: multiline())
-
+    def _create_application(self, editing_mode, on_abort, on_exit, erase_when_done):
+        # Create functions that will dynamically split the prompt. (If we have
+        # a multiline prompt.)
         has_before_tokens, get_prompt_tokens_1, get_prompt_tokens_2 = \
             _split_multiline_prompt(self._get_prompt_tokens)
+
+        @memoized(20)
+        def dyncond(attr_name):
+            """
+            Dynamically take this setting from this 'Prompt' class.
+            `attr_name` represents an attribute name of this class. Its value
+            can either be a boolean or a `SimpleFilter`.
+
+            This returns something that can be used as either a `SimpleFilter`
+            or `CLIFilter`.
+            """
+            @Condition
+            def dynamic_condition(*a):
+                value = getattr(self, attr_name)
+                return to_simple_filter(value)()
+            return dynamic_condition
 
         # Create buffers list.
         default_buffer = Buffer(
             name=DEFAULT_BUFFER,
-            eventloop=loop,
-            enable_history_search=enable_history_search,
-            complete_while_typing=complete_while_typing,
-            is_multiline=multiline,
-            history=(history or InMemoryHistory()),
-            validator=validator,
+            loop=self.loop,
+                # Make sure that complete_while_typing is disabled when
+                # enable_history_search is enabled. (First convert to
+                # SimpleFilter, to avoid doing bitwise operations on bool
+                # objects.)
+            complete_while_typing=Condition(lambda:
+                _true(self.complete_while_typing) and not
+                _true(self.enable_history_search)),
+            enable_history_search=dyncond('enable_history_search'),
+            is_multiline=dyncond('multiline'),
+            validator=DynamicValidator(lambda: self.validator),
             completer=DynamicCompleter(lambda: self.completer),
-            auto_suggest=auto_suggest,
-            accept_action=accept_action,
-            initial_document=initial_document)
+            history=DynamicHistory(lambda: self.history),
+            auto_suggest=DynamicAutoSuggest(lambda: self.auto_suggest),
+            accept_action=AcceptAction.RETURN_DOCUMENT)
+#            initial_document=Document(default))
 
-        search_buffer = Buffer(
-            name=SEARCH_BUFFER,
-            eventloop=loop)
-
-        system_buffer = Buffer(
-            name=SYSTEM_BUFFER,
-            eventloop=loop)
+        search_buffer = Buffer(name=SEARCH_BUFFER, loop=self.loop)
+        system_buffer = Buffer(name=SYSTEM_BUFFER, loop=self.loop)
 
         # Create processors list.
         input_processors = [
@@ -312,28 +343,26 @@ class Prompt(object):
                 HasFocus(search_buffer)),
             HighlightSelectionProcessor(),
             ConditionalProcessor(AppendAutoSuggestion(), HasFocus(default_buffer) & ~IsDone()),
-            ConditionalProcessor(PasswordProcessor(), is_password),
+            ConditionalProcessor(PasswordProcessor(), dyncond('is_password')),
             DisplayMultipleCursors(),
         ]
 
-        if extra_input_processors:
-            input_processors.extend(extra_input_processors)
+#        if extra_input_processors:  # XXX: make dynamic!
+#            input_processors.extend(extra_input_processors)
 
         # For single line mode, show the prompt before the input.
         input_processors.extend([
-            ConditionalProcessor(BeforeInput(get_prompt_tokens_2), ~multiline2),
-            ConditionalProcessor(ShowArg(), ~multiline2),
+            ConditionalProcessor(BeforeInput(get_prompt_tokens_2), ~dyncond('multiline')),
+            ConditionalProcessor(ShowArg(), ~dyncond('multiline')),
         ])
 
-        # Create bottom toolbar.
-        if get_bottom_toolbar_tokens:
-            toolbars = [ConditionalContainer(
-                Window(TokenListControl(get_bottom_toolbar_tokens,
-                                        default_char=Char(' ', Token.Toolbar)),
-                                        height=LayoutDimension.exact(1)),
-                filter=~IsDone() & RendererHeightIsKnown())]
-        else:
-            toolbars = []
+        # Create bottom toolbars.
+        bottom_toolbar = ConditionalContainer(
+            Window(TokenListControl(lambda cli: self.get_bottom_toolbar_tokens(cli),
+                                    default_char=Char(' ', Token.Toolbar)),
+                                    height=LayoutDimension.exact(1)),
+            filter=~IsDone() & RendererHeightIsKnown() &
+                    Condition(lambda cli: self.get_bottom_toolbar_tokens is not None))
 
         search_toolbar = SearchToolbar(search_buffer)
         search_buffer_control = BufferControl(
@@ -342,8 +371,9 @@ class Prompt(object):
                 ReverseSearchProcessor(),
             ])
 
-        def get_search_buffer_control():
-            if multiline():
+        def get_search_buffer_control():  # TODO: if 'multiline' changes while asking for input. automatically focus the other control while searching.
+            " Return the UIControl to be focussed when searching start. "
+            if to_simple_filter(self.multiline)():
                 return search_toolbar.control
             else:
                 return search_buffer_control
@@ -357,7 +387,7 @@ class Prompt(object):
             # in reverse-i-search mode.
             preview_search=True)
 
-        # Create and return Container instance.
+        # Build the layout.
         layout = HSplit([
             # The main input, with completion menus floating on top of it.
             FloatContainer(
@@ -375,11 +405,11 @@ class Prompt(object):
                                 # In multiline mode, use the window margin to display
                                 # the prompt and continuation tokens.
                                 ConditionalMargin(
-                                    PromptMargin(get_prompt_tokens_2, get_continuation_tokens),
-                                    filter=multiline2
+                                    PromptMargin(get_prompt_tokens_2, self._get_continuation_tokens),
+                                    filter=dyncond('multiline'),
                                 )
                             ],
-                            wrap_lines=wrap_lines,
+                            wrap_lines=dyncond('wrap_lines'),
                         ),
                         Condition(lambda cli:
                             cli.focussed_control != search_buffer_control),
@@ -398,50 +428,112 @@ class Prompt(object):
                               max_height=16,
                               scroll_offset=1,
                               extra_filter=HasFocus(default_buffer) &
-                                           ~display_completions_in_columns)),
+                                  ~dyncond('display_completions_in_columns'),
+                    )),
                     Float(xcursor=True,
                           ycursor=True,
                           content=MultiColumnCompletionsMenu(
+                              show_meta=True,
                               extra_filter=HasFocus(default_buffer) &
-                                           display_completions_in_columns,
-                              show_meta=True)),
-
+                                  dyncond('display_completions_in_columns'),
+                    )),
                     # The right prompt.
                     Float(right=0, top=0, hide_when_covering_content=True,
-                          content=_RPrompt(get_rprompt_tokens)),
+                          content=_RPrompt(self._get_rprompt_tokens)),
                 ]
             ),
             ValidationToolbar(),
             SystemToolbar(system_buffer),
 
             # In multiline mode, we use two toolbars for 'arg' and 'search'.
-            ConditionalContainer(ArgToolbar(), multiline2),
-            ConditionalContainer(search_toolbar, multiline2),
-        ] + toolbars)
+            ConditionalContainer(ArgToolbar(), dyncond('multiline')),
+            ConditionalContainer(search_toolbar, dyncond('multiline')),
+            bottom_toolbar,
+        ])
 
         # Create application
-        self.application = Application(
+        application = Application(
             layout=layout,
             focussed_control=default_buffer_control,
-            style=DynamicStyle(lambda: self.style),
-            clipboard=clipboard,
-            key_bindings_registry=key_bindings_registry,
-            get_title=get_title,
-            mouse_support=mouse_support,
+            style=DynamicStyle(lambda: self.style or DEFAULT_STYLE),
+            clipboard=DynamicClipboard(lambda: self.clipboard),
+            key_bindings_registry=DynamicRegistry(lambda: self.key_bindings_registry),
+            get_title=self._get_title,
+            mouse_support=dyncond('mouse_support'),
             editing_mode=editing_mode,
             erase_when_done=erase_when_done,
             reverse_vi_search_direction=True,
             on_abort=on_abort,
             on_exit=on_exit)
 
-        self._default_buffer =  default_buffer
-        self.loop = loop
-        self.reserve_space_for_menu = reserve_space_for_menu
-        self.message = message
-        self.get_prompt_tokens = get_prompt_tokens
-        self.style = style
-        self.lexer = lexer
-        self.completer = completer
+        # Create CommandLineInterface.
+        cli = CommandLineInterface(
+            application=application,
+            eventloop=self.loop,
+            input=self.input,
+            output=self.output)
+
+        return application, default_buffer, cli
+
+    def prompt(self, message=None, 
+            patch_stdout=False, true_color=False, refresh_interval=0, vi_mode=None,
+            # When any of these arguments are passed, this value is overwritten for the current prompt.
+            lexer=None, completer=None, is_password=None,
+            key_bindings_registry=None, get_bottom_toolbar_tokens=None,
+            style=None, get_prompt_tokens=None, get_rprompt_tokens=None, multiline=None,
+            get_continuation_tokens=None, wrap_lines=None, history=None,
+            enable_history_search=None, on_abort=None, on_exit=None,
+            complete_while_typing=None, display_completions_in_columns=None,
+            auto_suggest=None, validator=None, clipboard=None,
+            mouse_support=None, get_title=None):
+
+        # Backup original settings.
+        backup = dict((name, getattr(self, name)) for name in self._fields)
+
+        # Take settings from 'prompt'-arguments.
+        for name in self._fields:
+            value = locals()[name]
+            if value is not None:
+                setattr(self, name, value)
+
+        if vi_mode:
+            self.editing_mode = EditingMode.VI
+
+        try:
+            return _run_application(self.cli,
+                patch_stdout=patch_stdout,
+                #return_asyncio_coroutine=return_asyncio_coroutine,
+                true_color=true_color,
+                refresh_interval=refresh_interval,
+                loop=self.loop)
+        finally:
+            # Restore original settings.
+            for name in self._fields:
+                setattr(self, name, backup[name])
+
+    @property
+    def on_abort(self):
+        return self.application.on_abort
+
+    @on_abort.setter
+    def on_abort(self, value):
+        self.application.on_abort = value
+
+    @property
+    def on_exit(self):
+        return self.application.on_exit
+
+    @on_exit.setter
+    def on_exit(self, value):
+        self.application.on_exit = value
+
+    @property
+    def editing_mode(self):
+        return self.application.editing_mode
+
+    @editing_mode.setter
+    def editing_mode(self, value):
+        self.application.editing_mode = value
 
     def _get_default_buffer_control_height(self, cli):
         # If there is an autocompletion menu to be shown, make sure that our
@@ -461,28 +553,25 @@ class Prompt(object):
 
     def _get_prompt_tokens(self, cli):
         if self.get_prompt_tokens is None:
-            return [(Token.Prompt, self.message)]
+            return [(Token.Prompt, self.message or '')]
         else:
             return self.get_prompt_tokens(cli)
 
-    def prompt(self, message, patch_stdout=False, true_color=False, refresh_interval=0,
-            # When any of these arguments are passed, this value is overwritten for the current prompt.
-            lexer=None, completer=None):
-        self.message = message
+    def _get_rprompt_tokens(self, cli):
+        if self.get_rprompt_tokens:
+            return self.get_rprompt_tokens(cli)
+        return []
 
-        if lexer is not None: self.lexer = lexer
-        if completer is not None: self.completer = completer
+    def _get_continuation_tokens(self, cli, width):
+        if self.get_continuation_tokens:
+            return self.get_continuation_tokens(cli, width)
+        return []
 
-        try:
-            return _run_application(self.application,
-                patch_stdout=patch_stdout,
-                #return_asyncio_coroutine=return_asyncio_coroutine,
-                true_color=true_color,
-                refresh_interval=refresh_interval,
-                loop=self.loop)
-        finally:
-            # TODO: restore original settings.
-            pass
+    def _get_title(self):
+        if self.get_title is None:
+            return
+        else:
+            return self.get_title()
 
     def prompt_async(self): pass
 
@@ -492,8 +581,13 @@ class Prompt(object):
 
 
 # The default prompt function.
-_prompt = Prompt()
-prompt = _prompt.prompt  # XXX: TODO: only create the Prompt() instance the first time that this function is used. We should not do I/O during import!
+_prompt = None
+def prompt(*a, **kw):
+    global _prompt
+    if _prompt is None:
+        _prompt = Prompt()
+    return _prompt.prompt(*a, **kw)
+prompt.__doc__ = Prompt.prompt.__doc__
 
 def _old_prompt(message='', **kwargs):
     """
@@ -531,8 +625,8 @@ def _old_prompt(message='', **kwargs):
 
 
 
-def _run_application(
-        application, patch_stdout=False, return_asyncio_coroutine=False,
+def _run_application(cli,
+        patch_stdout=False, return_asyncio_coroutine=False,
         true_color=False, refresh_interval=0, loop=None):
     """
     Run a prompt toolkit application.
@@ -545,14 +639,7 @@ def _run_application(
     :param refresh_interval: (number; in seconds) When given, refresh the UI
         every so many seconds.
     """
-    assert isinstance(application, Application)
     assert isinstance(loop, EventLoop)
-
-    # Create CommandLineInterface.
-    cli = CommandLineInterface(
-        application=application,
-        eventloop=loop,
-        output=create_output(true_color=true_color))
 
     # Set up refresh interval.
     if refresh_interval:

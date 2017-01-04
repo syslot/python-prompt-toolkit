@@ -5,9 +5,8 @@ from .enums import EditingMode
 from .filters import CLIFilter, to_cli_filter
 from .key_binding.defaults import load_key_bindings
 from .key_binding.registry import BaseRegistry
-from .layout import Window
 from .layout.containers import Container
-from .layout.controls import BufferControl, UIControl
+from .layout.controls import UIControl
 from .layout.focus import Focus
 from .styles import DEFAULT_STYLE, Style
 import six
@@ -98,7 +97,7 @@ class Application(object):
         mouse_support = to_cli_filter(mouse_support)
         reverse_vi_search_direction = to_cli_filter(reverse_vi_search_direction)
 
-        assert layout is None or isinstance(layout, Container)
+        assert isinstance(layout, Container)
         assert key_bindings_registry is None or isinstance(key_bindings_registry, BaseRegistry)
         assert clipboard is None or isinstance(clipboard, Clipboard)
         assert on_abort in AbortAction._all
@@ -119,7 +118,6 @@ class Application(object):
         assert on_render is None or callable(on_render)
         assert on_invalidate is None or callable(on_invalidate)
 
-        self.layout = layout or Window(BufferControl())
         self.style = style or DEFAULT_STYLE
 
         if key_bindings_registry is None:
@@ -128,6 +126,7 @@ class Application(object):
         if get_title is None:
             get_title = lambda: None
 
+        self.layout = layout
         self.key_bindings_registry = key_bindings_registry
         self.clipboard = clipboard or InMemoryClipboard()
         self.on_abort = on_abort

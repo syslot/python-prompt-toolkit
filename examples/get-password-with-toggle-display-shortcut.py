@@ -22,7 +22,7 @@ def main():
 
     print('Type Control-T to toggle password visible.')
     password = prompt('Password: ',
-                      is_password=Condition(lambda cli: hidden[0]),
+                      is_password=Condition(lambda: hidden[0]),
                       key_bindings_registry=registry)
     print('You said: %s' % password)
 

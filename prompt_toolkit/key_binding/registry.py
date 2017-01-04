@@ -37,6 +37,7 @@ __all__ = (
     'Registry',
     'ConditionalRegistry',
     'MergedRegistry',
+    'DynamicRegistry',
 )
 
 
@@ -73,11 +74,26 @@ class BaseRegistry(with_metaclass(ABCMeta, object)):
 
     @abstractmethod
     def get_bindings_for_keys(self, keys):
-        pass
+        """
+        Return a list of key bindings that can handle these keys.
+        (This return also inactive bindings, so the `filter` still has to be
+        called, for checking it.)
+
+        :param keys: tuple of keys.
+        """
+        return []
 
     @abstractmethod
     def get_bindings_starting_with_keys(self, keys):
-        pass
+        """
+        Return a list of key bindings that handle a key sequence starting with
+        `keys`. (It does only return bindings for which the sequences are
+        longer than `keys`. And like `get_bindings_for_keys`, it also includes
+        inactive bindings.)
+
+        :param keys: tuple of keys.
+        """
+        return []
 
     # `add_binding` and `remove_binding` don't have to be part of this
     # interface.
@@ -348,3 +364,20 @@ class MergedRegistry(_AddRemoveMixin):
 
             self._registry2 = registry2
             self._last_version = expected_version
+
+
+class DynamicRegistry(BaseRegistry):
+    """
+    Registry class that can dynamically returns any Registry.
+
+    :param get_registry: Callable that returns a :class:`.Registry` instance.
+    """
+    def __init__(self, get_registry):
+        assert callable(get_registry)
+        self.get_registry = get_registry
+
+    def get_bindings_for_keys(self, keys):
+        return self.get_registry().get_bindings_for_keys(keys)
+
+    def get_bindings_starting_with_keys(self, keys):
+        return self.get_registry().get_bindings_starting_with_keys(keys)

@@ -6,7 +6,7 @@ Windows notes:
 """
 from __future__ import unicode_literals
 
-from ..terminal.win32_input import ConsoleInputReader
+from ..input.win32 import ConsoleInputReader
 from ..win32_types import SECURITY_ATTRIBUTES
 from .base import EventLoop, INPUT_TIMEOUT
 from .inputhook import InputHookContext

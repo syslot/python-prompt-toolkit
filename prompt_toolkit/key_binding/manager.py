@@ -44,7 +44,6 @@ class KeyBindingManager(object):
                  registry=None,  # XXX: not used anymore.
                  enable_vi_mode=None,  # (`enable_vi_mode` is deprecated.)
                  enable_all=True,  #
-                 get_search_state=None,
                  enable_abort_and_exit_bindings=False,
                  enable_system_bindings=False,
                  enable_search=False,
@@ -53,11 +52,9 @@ class KeyBindingManager(object):
                  enable_auto_suggest_bindings=False):
 
         assert registry is None or isinstance(registry, Registry)
-        assert get_search_state is None or callable(get_search_state)
         enable_all = to_cli_filter(enable_all)
 
         defaults = load_key_bindings(
-             get_search_state=get_search_state,
              enable_abort_and_exit_bindings=enable_abort_and_exit_bindings,
              enable_system_bindings=enable_system_bindings,
              enable_search=enable_search,

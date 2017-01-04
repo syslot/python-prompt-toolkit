@@ -122,7 +122,7 @@ def _display_completions_like_readline(cli, completions):
 
                     if page != page_count - 1:
                         # Display --MORE-- and go to the next page.
-                        show_more = yield _create_more_application()
+                        show_more = yield _create_more_application(cli.eventloop)
                         if not show_more:
                             return
             else:
@@ -134,7 +134,7 @@ def _display_completions_like_readline(cli, completions):
     cli.run_application_generator(run, render_cli_done=True)
 
 
-def _create_more_application():
+def _create_more_application(loop):
     """
     Create an `Application` instance that displays the "--MORE--".
     """
@@ -157,5 +157,5 @@ def _create_more_application():
     def _(event):
         event.cli.set_return_value(False)
 
-    return create_prompt_application(
-        '--MORE--', key_bindings_registry=registry, erase_when_done=True)
+    return create_prompt_application('--MORE--', 
+        loop=loop, key_bindings_registry=registry, erase_when_done=True)

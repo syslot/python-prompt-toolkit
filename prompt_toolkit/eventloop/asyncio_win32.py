@@ -7,7 +7,7 @@ Windows notes:
 from __future__ import unicode_literals
 
 from .base import EventLoop, INPUT_TIMEOUT
-from ..terminal.win32_input import ConsoleInputReader
+from ..input.win32 import ConsoleInputReader
 from .callbacks import EventLoopCallbacks
 from .asyncio_base import AsyncioTimeout
 

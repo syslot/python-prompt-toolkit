@@ -11,10 +11,12 @@ from prompt_toolkit.enums import DEFAULT_BUFFER, EditingMode
 from prompt_toolkit.eventloop.posix import PosixEventLoop
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.input import PipeInput
+from prompt_toolkit.input.vt100 import ANSI_SEQUENCES
 from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.manager import KeyBindingManager
+from prompt_toolkit.layout.containers import Window
+from prompt_toolkit.layout.controls import BufferControl
 from prompt_toolkit.output import DummyOutput
-from prompt_toolkit.terminal.vt100_input import ANSI_SEQUENCES
 from functools import partial
 import pytest
 
@@ -44,13 +46,22 @@ def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
     try:
         inp = PipeInput()
         inp.send_text(text)
+
+        default_buffer = Buffer(
+            loop=loop,
+            name=DEFAULT_BUFFER,
+            accept_action=AcceptAction.RETURN_DOCUMENT,
+            history=history, is_multiline=multiline)
+
+        buffer_control = BufferControl(buffer=default_buffer)
+
         cli = CommandLineInterface(
             application=Application(
-                buffer=Buffer(accept_action=AcceptAction.RETURN_DOCUMENT,
-                              history=history, is_multiline=multiline),
                 editing_mode=editing_mode,
                 clipboard=clipboard or InMemoryClipboard(),
                 key_bindings_registry=KeyBindingManager.for_prompt().registry,
+                layout=Window(buffer_control),
+                focussed_control=buffer_control,
             ),
             eventloop=loop,
             input=inp,
@@ -70,7 +81,7 @@ def test_simple_text_input():
     # Simple text input, followed by enter.
     result, cli = _feed_cli_with_input('hello\n')
     assert result.text == 'hello'
-    assert cli.buffers[DEFAULT_BUFFER].text == 'hello'
+    assert cli.current_buffer.text == 'hello'
 
 
 def test_emacs_cursor_movements():
@@ -116,12 +127,10 @@ def test_emacs_cursor_movements():
     # ControlC: raise KeyboardInterrupt.
     with pytest.raises(KeyboardInterrupt):
         result, cli = _feed_cli_with_input('hello\x03\n')
-        assert result.text == 'hello'
 
     # ControlD without any input: raises EOFError.
     with pytest.raises(EOFError):
         result, cli = _feed_cli_with_input('\x04\n')
-        assert result.text == 'hello'
 
     # ControlD: delete after cursor.
     result, cli = _feed_cli_with_input('hello\x01\x04\n')

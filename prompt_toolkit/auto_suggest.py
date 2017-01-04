@@ -15,8 +15,10 @@ from .filters import to_cli_filter
 __all__ = (
     'Suggestion',
     'AutoSuggest',
+    'DummyAutoSuggest',
     'AutoSuggestFromHistory',
     'ConditionalAutoSuggest',
+    'DynamicAutoSuggest',
 )
 
 
@@ -53,6 +55,13 @@ class AutoSuggest(with_metaclass(ABCMeta, object)):
         :param document: The :class:`~prompt_toolkit.document.Document` instance.
         """
 
+class DummyAutoSuggest(AutoSuggest):
+    """
+    AutoSuggest class that doesn't return any suggestion.
+    """
+    def get_suggestion(self, cli, buffer, document):
+        return  # No suggestion
+
 
 class AutoSuggestFromHistory(AutoSuggest):
     """
@@ -86,3 +95,19 @@ class ConditionalAutoSuggest(AutoSuggest):
     def get_suggestion(self, cli, buffer, document):
         if self.filter(cli):
             return self.auto_suggest.get_suggestion(cli, buffer, document)
+
+
+class DynamicAutoSuggest(AutoSuggest):
+    """
+    Validator class that can dynamically returns any Validator.
+
+    :param get_validator: Callable that returns a :class:`.Validator` instance.
+    """
+    def __init__(self, get_auto_suggest):
+        assert callable(get_auto_suggest)
+        self.get_auto_suggest = get_auto_suggest
+
+    def get_suggestion(self, *a, **kw):
+        auto_suggest = self.get_auto_suggest() or DummyAutoSuggest()
+        assert isinstance(auto_suggest, AutoSuggest)
+        return auto_suggest.get_suggestion(*a, **kw)

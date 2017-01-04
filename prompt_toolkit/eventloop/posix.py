@@ -6,7 +6,7 @@ import signal
 import threading
 import time
 
-from prompt_toolkit.terminal.vt100_input import InputStream
+from prompt_toolkit.input.vt100 import InputStream
 from prompt_toolkit.utils import DummyContext, in_main_thread
 from prompt_toolkit.input import Input
 from .base import EventLoop, INPUT_TIMEOUT

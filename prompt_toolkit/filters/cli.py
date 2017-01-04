@@ -53,17 +53,12 @@ class HasFocus(Filter):
         assert isinstance(value, (six.text_type, Buffer)), value
         self.value = value
 
-        if isinstance(value, six.text_type):
-            def __call__(cli):
-                return cli.current_buffer.name == value
-        else:
-            def __call__(cli):
-                return cli.current_buffer == value
-
-        self.__call__ = __call__
-
     def __call__(self, cli):
-        pass
+        value = self.value
+        if isinstance(value, six.text_type):
+            return cli.current_buffer.name == value
+        else:
+            return cli.current_buffer == value
 
     def __repr__(self):
         return 'HasFocus(%r)' % self.value

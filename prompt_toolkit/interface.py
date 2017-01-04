@@ -187,7 +187,7 @@ class CommandLineInterface(object):
         if isinstance(ui_control, BufferControl):
             return ui_control.buffer
         else:
-            return Buffer(eventloop=self.eventloop)  # Dummy buffer.
+            return Buffer(loop=self.eventloop)  # Dummy buffer.
 
     @property
     def current_search_state(self):
@@ -295,9 +295,6 @@ class CommandLineInterface(object):
 
             self.eventloop.call_from_executor(
                 redraw, _max_postpone_until=_max_postpone_until)
-
-    # Depracated alias for 'invalidate'.
-    request_redraw = invalidate
 
     def _redraw(self):
         """
@@ -463,9 +460,8 @@ class CommandLineInterface(object):
             """
             raise NotImplementedError
 
-    def run_sub_application(self, application, done_callback=None, erase_when_done=False,
+    def run_sub_application(self, application, done_callback=None,
                             _from_application_generator=False):
-        # `erase_when_done` is deprecated, set Application.erase_when_done instead.
         """
         Run a sub :class:`~prompt_toolkit.application.Application`.
 
@@ -498,7 +494,7 @@ class CommandLineInterface(object):
             # and reset the renderer. (This reset will also quit the alternate
             # screen, if the sub application used that.)
             sub_cli._redraw()
-            if erase_when_done or application.erase_when_done:
+            if application.erase_when_done:
                 sub_cli.renderer.erase()
             sub_cli.renderer.reset()
             sub_cli._is_running = False  # Don't render anymore.
@@ -766,23 +762,17 @@ class CommandLineInterface(object):
 
     @property
     def is_exiting(self):
-        """
-        ``True`` when the exit flag as been set.
-        """
+        " ``True`` when the exit flag as been set. "
         return self._exit_flag
 
     @property
     def is_aborting(self):
-        """
-        ``True`` when the abort flag as been set.
-        """
+        " ``True`` when the abort flag as been set. "
         return self._abort_flag
 
     @property
     def is_returning(self):
-        """
-        ``True`` when a return value has been set.
-        """
+        " ``True`` when a return value has been set. "
         return self._return_value is not None
 
     def return_value(self):
