@@ -145,6 +145,7 @@ def _create_more_application(loop):
     @registry.add_binding('y')
     @registry.add_binding('Y')
     @registry.add_binding(Keys.ControlJ)
+    @registry.add_binding(Keys.ControlM)
     @registry.add_binding(Keys.ControlI)  # Tab.
     def _(event):
         event.cli.set_return_value(True)

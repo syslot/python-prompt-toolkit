@@ -18,7 +18,7 @@ from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
 
 from .lexers import Lexer, SimpleLexer
-from .processors import Processor, TransformationInput, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors
+from .processors import Processor, TransformationInput, HighlightSearchProcessor, HighlightSelectionProcessor, DisplayMultipleCursors, MergedProcessor
 
 from .screen import Char, Point
 from .utils import token_list_width, split_lines, token_list_to_text
@@ -425,18 +425,20 @@ class BufferControl(UIControl):
     """
     Control for visualising the content of a `Buffer`.
 
-    :param input_processors: list of :class:`~prompt_toolkit.layout.processors.Processor`.
+    :param buffer: The `Buffer` object to be displayed.
+    :param input_processor: A :class:`~prompt_toolkit.layout.processors.Processor`. (Use
+        :class:`~prompt_toolkit.layout.processors.MergedProcessor` if you want
+        to apply multiple processors.)
     :param lexer: :class:`~prompt_toolkit.layout.lexers.Lexer` instance for syntax highlighting.
     :param preview_search: `bool` or `CLIFilter`: Show search while typing.
     :param get_search_state: Callable that returns the SearchState to be used.
-    :param buffer: The `Buffer` object to be displayed.
     :param default_char: :class:`.Char` instance to use to fill the background. This is
         transparent by default.
     :param focus_on_click: Focus this buffer when it's click, but not yet focussed.
     """
     def __init__(self,
                  buffer,
-                 input_processors=None,
+                 input_processor=None,
                  lexer=None,
                  preview_search=False,
                  search_buffer_control=None,
@@ -446,7 +448,7 @@ class BufferControl(UIControl):
                  default_char=None,
                  focus_on_click=False):
         assert isinstance(buffer, Buffer)
-        assert input_processors is None or all(isinstance(i, Processor) for i in input_processors)
+        assert input_processor is None or isinstance(input_processor, Processor)
         assert menu_position is None or callable(menu_position)
         assert lexer is None or isinstance(lexer, Lexer)
         assert search_buffer_control is None or isinstance(search_buffer_control, BufferControl)
@@ -461,19 +463,19 @@ class BufferControl(UIControl):
             def get_search_state():
                 return search_state
 
-        # Default input processors (display search and selection by default.)
-        if input_processors is None:
-            input_processors = [
+        # Default input processor (display search and selection by default.)
+        if input_processor is None:
+            input_processor = MergedProcessor([
                 HighlightSearchProcessor(),
                 HighlightSelectionProcessor(),
                 DisplayMultipleCursors(),
-            ]
+            ])
 
         self.preview_search = to_cli_filter(preview_search)
         self.get_search_state = get_search_state
         self.focus_on_click = to_cli_filter(focus_on_click)
 
-        self.input_processors = input_processors or []
+        self.input_processor = input_processor
         self.buffer = buffer
         self.menu_position = menu_position
         self.lexer = lexer or SimpleLexer()
@@ -500,8 +502,9 @@ class BufferControl(UIControl):
 
     @property
     def search_buffer(self):
-        if self.get_search_buffer_control is not None:
-            return self.get_search_buffer_control().buffer
+        control = self.search_buffer_control
+        if control is not None:
+            return control.buffer
 
     @property
     def search_state(self):
@@ -560,11 +563,10 @@ class BufferControl(UIControl):
         returns a _ProcessedLine(processed_tokens, source_to_display, display_to_source)
         tuple.
         """
+        merged_processor = self.input_processor
+
         def transform(lineno, tokens):
             " Transform the tokens for a given line number. "
-            source_to_display_functions = []
-            display_to_source_functions = []
-
             # Get cursor position at this line.
             if document.cursor_position_row == lineno:
                 cursor_column = document.cursor_position_col
@@ -572,31 +574,23 @@ class BufferControl(UIControl):
                 cursor_column = None
 
             def source_to_display(i):
-                """ Translate x position from the buffer to the x position in the
-                processed token list. """
-                for f in source_to_display_functions:
-                    i = f(i)
+                """ X position from the buffer to the x position in the
+                processed token list. By default, we start from the 'identity'
+                operation. """
                 return i
 
-            # Apply each processor.
-            for p in self.input_processors:
-                transformation = p.apply_transformation(TransformationInput(
+            transformation = merged_processor.apply_transformation(
+                TransformationInput(
                     cli, self, document, lineno, source_to_display, tokens,
                     width, height))
-                tokens = transformation.tokens
 
-                if cursor_column:
-                    cursor_column = transformation.source_to_display(cursor_column)
+            if cursor_column:
+                cursor_column = transformation.source_to_display(cursor_column)
 
-                display_to_source_functions.append(transformation.display_to_source)
-                source_to_display_functions.append(transformation.source_to_display)
-
-            def display_to_source(i):
-                for f in reversed(display_to_source_functions):
-                    i = f(i)
-                return i
-
-            return _ProcessedLine(tokens, source_to_display, display_to_source)
+            return _ProcessedLine(
+                transformation.tokens,
+                transformation.source_to_display,
+                transformation.display_to_source)
 
         def create_func():
             get_line = self._get_tokens_for_line_func(cli, document)
@@ -623,16 +617,15 @@ class BufferControl(UIControl):
         # search buffer has focus, and the preview_search filter is enabled),
         # then use the search document, which has possibly a different
         # text/cursor position.)
-        def preview_now():
-            """ True when we should preview a search. """
-            return bool(self.search_buffer and self.search_buffer.text and
-                        self.preview_search(cli))
+        search_control = self.search_buffer_control
+        preview_now = bool(
+            search_control and search_control.buffer.text and self.preview_search(cli))
 
-        if preview_now():
+        if preview_now:
             ss = self.search_state
 
             document = buffer.document_for_search(SearchState(
-                text=self.search_buffer.text,
+                text=search_control.buffer.text,
                 direction=ss.direction,
                 ignore_case=ss.ignore_case))
         else:

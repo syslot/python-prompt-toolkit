@@ -381,20 +381,6 @@ class InputStream(object):
                     self.feed(data[i:])
                     break
                 else:
-                    # Replace \r by \n. (Some clients send \r instead of \n
-                    # when enter is pressed. E.g. telnet and some other
-                    # terminals.)
-
-                    # XXX: We should remove this in a future version. It *is*
-                    #      now possible to recognise the difference.
-                    #      (We remove ICRNL/INLCR/IGNCR below.)
-                    #      However, this breaks IPython and maybe other applications,
-                    #      because they bind ControlJ (\n) for handling the Enter key.
-
-                    #      When this is removed, replace Enter=ControlJ by
-                    #      Enter=ControlM in keys.py.
-                    if c == '\r':
-                        c = '\n'
                     self._input_parser.send(c)
 
     def flush(self):

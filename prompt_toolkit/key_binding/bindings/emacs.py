@@ -129,7 +129,7 @@ def load_emacs_bindings():
         lambda cli: cli.current_buffer.accept_action.is_returnable)
 
     # Meta + Newline: always accept input.
-    handle(Keys.Escape, Keys.ControlJ, filter=insert_mode & is_returnable)(
+    handle(Keys.Escape, Keys.Enter, filter=insert_mode & is_returnable)(
         get_by_name('accept-line'))
 
     def character_search(buff, char, count):
@@ -335,7 +335,7 @@ def load_emacs_system_bindings():
         event.cli.buffers[SYSTEM_BUFFER].reset()
         event.cli.focus.focus_previous()
 
-    @handle(Keys.ControlJ, filter=has_focus)
+    @handle(Keys.Enter, filter=has_focus)
     def _(event):
         """
         Run system command.
@@ -368,7 +368,7 @@ def load_emacs_search_bindings():
         event.cli.current_buffer.reset()
         event.cli.focus.focus_previous()
 
-    @handle(Keys.ControlJ, filter=is_searching)
+    @handle(Keys.Enter, filter=is_searching)
     def _(event):
         """
         When enter pressed in isearch, quit isearch mode. (Multiline

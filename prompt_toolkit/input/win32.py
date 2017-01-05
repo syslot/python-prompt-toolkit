@@ -42,9 +42,7 @@ class ConsoleInputReader(object):
         b'\x0a': Keys.ControlJ,  # Control-J (10) (Identical to '\n')
         b'\x0b': Keys.ControlK,  # Control-K (delete until end of line; vertical tab)
         b'\x0c': Keys.ControlL,  # Control-L (clear; form feed)
-        b'\x0d': Keys.ControlJ,  # Control-J NOTE: Windows sends \r instead of
-                                 #   \n when pressing enter. We turn it into \n
-                                 #   to be compatible with other platforms.
+        b'\x0d': Keys.ControlM,  # Control-M (enter)
         b'\x0e': Keys.ControlN,  # Control-N (14) (history forward)
         b'\x0f': Keys.ControlO,  # Control-O (15)
         b'\x10': Keys.ControlP,  # Control-P (16) (history back)

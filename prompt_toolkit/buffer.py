@@ -216,10 +216,6 @@ class Buffer(object):
 
     Filters:
 
-    :param is_multiline: :class:`~prompt_toolkit.filters.SimpleFilter` to
-        indicate whether we should consider this buffer a multiline input. If
-        so, key bindings can decide to insert newlines when pressing [Enter].
-        (Instead of accepting the input.)
     :param complete_while_typing: :class:`~prompt_toolkit.filters.SimpleFilter`
         instance. Decide whether or not to do asynchronous autocompleting while
         typing.
@@ -233,7 +229,7 @@ class Buffer(object):
     """
     def __init__(self, loop=None, completer=None, auto_suggest=None, history=None,
                  validator=None, tempfile_suffix='', name='',
-                 is_multiline=False, complete_while_typing=False,
+                 complete_while_typing=False,
                  enable_history_search=False, initial_document=None,
                  accept_action=AcceptAction.IGNORE, read_only=False,
                  on_text_changed=None, on_text_insert=None, on_cursor_position_changed=None,
@@ -241,7 +237,6 @@ class Buffer(object):
 
         # Accept both filters and booleans as input.
         enable_history_search = to_simple_filter(enable_history_search)
-        is_multiline = to_simple_filter(is_multiline)
         complete_while_typing = to_simple_filter(complete_while_typing)
         read_only = to_simple_filter(read_only)
 
@@ -266,7 +261,6 @@ class Buffer(object):
         self.accept_action = accept_action
 
         # Filters. (Usually, used by the key bindings to drive the buffer.)
-        self.is_multiline = is_multiline
         self.complete_while_typing = complete_while_typing
         self.enable_history_search = enable_history_search
         self.read_only = read_only

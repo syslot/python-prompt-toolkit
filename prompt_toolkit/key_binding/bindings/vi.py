@@ -450,7 +450,7 @@ def load_vi_bindings():
         """
         event.current_buffer.cancel_completion()
 
-    @handle(Keys.ControlJ, filter=navigation_mode)   # XXX: only if the selected buffer has a return handler.
+    @handle(Keys.Enter, filter=navigation_mode)   # XXX: only if the selected buffer has a return handler.
     def _(event):
         """
         In navigation mode, pressing enter will always return the input.
@@ -1372,7 +1372,7 @@ def load_vi_bindings():
 
     @handle('z', '+', filter=navigation_mode|selection_mode)
     @handle('z', 't', filter=navigation_mode|selection_mode)
-    @handle('z', Keys.ControlJ, filter=navigation_mode|selection_mode)
+    @handle('z', Keys.Enter, filter=navigation_mode|selection_mode)
     def _(event):
         """
         Scrolls the window to makes the current line the first line in the visible region.
@@ -1738,7 +1738,7 @@ def load_vi_system_bindings():
         event.cli.buffers[SYSTEM_BUFFER].reset()
         event.cli.focus.focus_previous()
 
-    @handle(Keys.ControlJ, filter=has_focus)
+    @handle(Keys.Enter, filter=has_focus)
     def _(event):
         """
         Run system command.
@@ -1803,7 +1803,7 @@ def load_vi_search_bindings():
         # Focus search buffer.
         event.cli.focussed_control = control.search_buffer_control
 
-    @handle(Keys.ControlJ, filter=is_searching)
+    @handle(Keys.Enter, filter=is_searching)
     def _(event):
         """
         Apply the search. (At the / or ? prompt.)

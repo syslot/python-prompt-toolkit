@@ -27,6 +27,7 @@ __all__ = (
     'TransformationInput',
     'Transformation',
 
+    'DummyProcessor',
     'HighlightSearchProcessor',
     'HighlightSelectionProcessor',
     'PasswordProcessor',
@@ -40,6 +41,8 @@ __all__ = (
     'ShowLeadingWhiteSpaceProcessor',
     'ShowTrailingWhiteSpaceProcessor',
     'TabsProcessor',
+    'DynamicProcessor',
+    'MergedProcessor',
 )
 
 
@@ -56,13 +59,6 @@ class Processor(with_metaclass(ABCMeta, object)):
         :param transformation_input: :class:`.TransformationInput` object.
         """
         return Transformation(transformation_input.tokens)
-
-    def has_focus(self, cli):
-        """
-        Processors can override the focus.
-        (Used for the reverse-i-search prefix in DefaultPrompt.)
-        """
-        return False
 
 
 class TransformationInput(object):
@@ -110,6 +106,14 @@ class Transformation(object):
         self.tokens = tokens
         self.source_to_display = source_to_display or (lambda i: i)
         self.display_to_source = display_to_source or (lambda i: i)
+
+
+class DummyProcessor(Processor):
+    """
+    A `Processor` that doesn't do anything.
+    """
+    def apply_transformation(self, transformation_input):
+        return Transformation(transformation_input.tokens)
 
 
 class HighlightSearchProcessor(Processor):
@@ -641,21 +645,43 @@ class ReverseSearchProcessor(Processor):
         # For this we filter out some of the input processors.
         excluded_processors = tuple(self._excluded_input_processors)
 
-        def filter_processors(items):
-            for p in items:
-                if (isinstance(p, excluded_processors) or
-                    (isinstance(p, ConditionalProcessor) and
-                        isinstance(p.processor, excluded_processors))):
-                    continue
-                yield p
+        def filter_processor(item):
+            """ Filter processors from the main control that we want to disable
+            here. This returns either an accepted processor or None. """
+            # For a `MergedProcessor`, check each individual processor, recursively.
+            if isinstance(item, MergedProcessor):
+                accepted_processors = [filter_processor(p) for p in item.processors]
+                accepted_processors = [p for p in accepted_processors if p is not None]
 
-        processors = list(filter_processors(main_control.input_processors))
-        processors.append(HighlightSearchProcessor(preview_search=True))
+                if accepted_processors > 1:
+                    return MergedProcessor(accepted_processors)
+                elif accepted_processors == 1:
+                    return accepted_processors[0]
+
+            # For a `ConditionalProcessor`, check the body.
+            elif isinstance(item, ConditionalProcessor):
+                if not isinstance(item.processor, excluded_processors):
+                    return item
+
+            # Otherwise, check the processor itself.
+            else:
+                if not isinstance(item, excluded_processors):
+                    return item
+
+        filtered_processor = filter_processor(main_control.input_processor)
+        highlight_processor = HighlightSearchProcessor(preview_search=True)
+
+        if filtered_processor:
+            new_processor = MergedProcessor([filtered_processor, highlight_processor])
+        else:
+            new_processor = highlight_processor
 
         buffer_control = BufferControl(
                  buffer=main_control.buffer,
-                 input_processors=processors,
-                 lexer=main_control.lexer)
+                 input_processor=new_processor,
+                 lexer=main_control.lexer,
+                 preview_search=True,
+                 search_buffer_control=ti.buffer_control)
 
         return buffer_control.create_content(ti.cli, ti.width, ti.height)
 
@@ -726,12 +752,67 @@ class ConditionalProcessor(Processor):
         else:
             return Transformation(transformation_input.tokens)
 
-    def has_focus(self, cli):
-        if self.filter(cli):
-            return self.processor.has_focus(cli)
-        else:
-            return False
-
     def __repr__(self):
         return '%s(processor=%r, filter=%r)' % (
             self.__class__.__name__, self.processor, self.filter)
+
+
+class DynamicProcessor(Processor):
+    """
+    Processor class that can dynamically returns any Processor.
+
+    :param get_processor: Callable that returns a :class:`.Processor` instance.
+    """
+    def __init__(self, get_processor):
+        assert callable(get_processor)
+        self.get_processor = get_processor
+
+    def apply_transformation(self, ti):
+        processor = self.get_processor() or DummyProcessor()
+        return processor.apply_transformation(ti)
+
+
+class MergedProcessor(Processor):
+    """
+    Processor that groups multiple other `Processor` objects, but exposes an
+    API as if it is one `Processor`.
+    """
+    def __init__(self, processors):
+        assert all(isinstance(p, Processor) for p in processors)
+        self.processors = processors
+
+    def apply_transformation(self, ti):
+        source_to_display_functions = [ti.source_to_display]
+        display_to_source_functions = []
+        tokens = ti.tokens
+
+        def source_to_display(i):
+            """ Translate x position from the buffer to the x position in the
+            processor token list. """
+            for f in source_to_display_functions:
+                i = f(i)
+            return i
+
+        for p in self.processors:
+            transformation = p.apply_transformation(TransformationInput(
+                ti.cli, ti.buffer_control, ti.document, ti.lineno,
+                source_to_display, tokens, ti.width, ti.height))
+            tokens = transformation.tokens
+            display_to_source_functions.append(transformation.display_to_source)
+            source_to_display_functions.append(transformation.source_to_display)
+
+        def display_to_source(i):
+            for f in reversed(display_to_source_functions):
+                i = f(i)
+            return i
+
+        # In the case of a nested MergedProcessor, each processor wants to
+        # receive a 'source_to_display' function (as part of the
+        # TransformationInput) that has everything in the chain before
+        # included, because it can be called as part of the
+        # `apply_transformation` function. However, this first
+        # `source_to_display` should not be part of the output that we are
+        # returning. (This is the most consistent with `display_to_source`.)
+        del source_to_display_functions[:1]
+
+        return Transformation(tokens, source_to_display, display_to_source)

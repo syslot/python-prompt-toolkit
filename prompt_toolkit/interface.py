@@ -36,9 +36,6 @@ from .renderer import Renderer, print_tokens
 from .search_state import SearchState
 from .utils import Event
 
-# Following import is required for backwards compatibility.
-from .buffer import AcceptAction
-
 __all__ = (
     'AbortAction',
     'CommandLineInterface',
@@ -120,7 +117,6 @@ class CommandLineInterface(object):
         self._sub_cli = None  # None or other CommandLineInterface instance.
 
         # Events.
-#        self.on_buffer_changed = Event(self, application.on_buffer_changed)
         self.on_initialize = Event(self, application.on_initialize)
         self.on_input_timeout = Event(self, application.on_input_timeout)
         self.on_invalidate = Event(self, application.on_invalidate)
@@ -227,14 +223,9 @@ class CommandLineInterface(object):
         """
         return IsSearching()(self)
 
-    def reset(self, reset_current_buffer=False):
+    def reset(self):
         """
         Reset everything, for reading the next input.
-
-        :param reset_current_buffer: XXX: not used anymore. The reason for
-            having this option in the past was when this CommandLineInterface
-            is run multiple times, that we could reset the buffer content from
-            the previous run. This is now handled in the AcceptAction.
         """
         # Notice that we don't reset the buffers. (This happens just before
         # returning, and when we have multiple buffers, we clearly want the
@@ -359,12 +350,11 @@ class CommandLineInterface(object):
             c()
         del self.pre_run_callables[:]
 
-    def run(self, reset_current_buffer=False, pre_run=None):
+    def run(self, pre_run=None):
         """
         Read input from the command line.
         This runs the eventloop until a return value has been set.
 
-        :param reset_current_buffer: XXX: Not used anymore.
         :param pre_run: Callable that is called right after the reset has taken
             place. This allows custom initialisation.
         """
@@ -408,55 +398,47 @@ class CommandLineInterface(object):
         # because it contains syntax which is not supported on older Python
         # versions. (A 'return' inside a generator.)
         six.exec_(textwrap.dedent('''
-        def run_async(self, reset_current_buffer=True, pre_run=None):
+        async def run_async(self, pre_run=None):
             """
             Same as `run`, but this returns a coroutine.
 
-            This is only available on Python >3.3, with asyncio.
+            This is only available on Python >3.5, with asyncio.
             """
-            # Inline import, because it slows down startup when asyncio is not
-            # needed.
-            import asyncio
+            assert pre_run is None or callable(pre_run)
 
-            @asyncio.coroutine
-            def run():
-                assert pre_run is None or callable(pre_run)
+            try:
+                self._is_running = True
 
-                try:
-                    self._is_running = True
+                self.on_start.fire()
+                self.reset()
 
-                    self.on_start.fire()
-                    self.reset()
+                # Call pre_run.
+                self._pre_run(pre_run)
 
-                    # Call pre_run.
-                    self._pre_run(pre_run)
+                with self.input.raw_mode():
+                    self.renderer.request_absolute_cursor_position()
+                    self._redraw()
 
-                    with self.input.raw_mode():
-                        self.renderer.request_absolute_cursor_position()
-                        self._redraw()
+                    await self.eventloop.run_as_coroutine(
+                            self.input, self.create_eventloop_callbacks())
 
-                        yield from self.eventloop.run_as_coroutine(
-                                self.input, self.create_eventloop_callbacks())
+                return self.return_value()
+            finally:
+                if not self.is_done:
+                    self._exit_flag = True
+                    self._redraw()
 
-                    return self.return_value()
-                finally:
-                    if not self.is_done:
-                        self._exit_flag = True
-                        self._redraw()
-
-                    self.renderer.reset()
-                    self.on_stop.fire()
-                    self._is_running = False
-
-            return run()
+                self.renderer.reset()
+                self.on_stop.fire()
+                self._is_running = False
         '''))
     except SyntaxError:
         # Python2, or early versions of Python 3.
-        def run_async(self, reset_current_buffer=True, pre_run=None):
+        def run_async(self, pre_run=None):
             """
             Same as `run`, but this returns a coroutine.
 
-            This is only available on Python >3.3, with asyncio.
+            This is only available on Python >3.5, with asyncio.
             """
             raise NotImplementedError
 
@@ -562,10 +544,6 @@ class CommandLineInterface(object):
 
         elif on_abort == AbortAction.RETURN_NONE:
             self.set_return_value(None)
-
-    # Deprecated aliase for exit/abort.
-    set_exit = exit
-    set_abort = abort
 
     def set_return_value(self, document):
         """

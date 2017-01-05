@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import HasSelection, Condition, EmacsInsertMode, ViInsertMode
+from prompt_toolkit.key_binding.input_processor import KeyPress
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.screen import Point
 from prompt_toolkit.mouse_events import MouseEventType, MouseEvent
@@ -152,19 +153,19 @@ def load_basic_bindings():
     text_before_cursor = Condition(lambda cli: cli.current_buffer.text)
     handle(Keys.ControlD, filter=text_before_cursor & insert_mode)(get_by_name('delete-char'))
 
-    is_multiline = Condition(lambda cli: cli.current_buffer.is_multiline())
-    is_returnable = Condition(lambda cli: cli.current_buffer.accept_action.is_returnable)
-
-    @handle(Keys.ControlJ, filter=is_multiline & insert_mode)
+    @handle(Keys.Enter, filter=insert_mode)
     def _(event):
         " Newline (in case of multiline input. "
         event.current_buffer.newline(copy_margin=not event.cli.in_paste_mode)
 
-    @handle(Keys.ControlJ, filter=~is_multiline & is_returnable)
+    @handle(Keys.ControlJ)
     def _(event):
-        " Enter, accept input. "
-        buff = event.current_buffer
-        buff.accept_action.validate_and_handle(event.cli, buff)
+        """
+        By default, handle \n as if it were a \r (enter).
+        (It appears that some terminals send \r instead of \r when pressing enter.)
+        """
+        event.input_processor.feed(
+            KeyPress(Keys.ControlM, '\r'))
 
     # Delete the word before the cursor.
 

@@ -11,7 +11,6 @@ from .containers import Window, ConditionalContainer
 from .screen import Char
 from .utils import token_list_len
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.enums import SEARCH_BUFFER, SYSTEM_BUFFER
 from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone
 from prompt_toolkit.token import Token
 
@@ -42,7 +41,7 @@ class SystemToolbarControl(BufferControl):
             buffer=system_buffer,
             default_char=Char(token=token),
             lexer=SimpleLexer(token=token.Text),
-            input_processors=[BeforeInput.static('Shell command: ', token)],)
+            input_processor=BeforeInput.static('Shell command: ', token))
 
 
 class SystemToolbar(ConditionalContainer):
@@ -99,7 +98,7 @@ class SearchToolbarControl(BufferControl):
 
         super(SearchToolbarControl, self).__init__(
             buffer=search_buffer,
-            input_processors=[BeforeInput(get_before_input)],
+            input_processor=BeforeInput(get_before_input),
             default_char=Char(token=token),
             lexer=SimpleLexer(token=token.Text))
 
