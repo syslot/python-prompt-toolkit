@@ -119,6 +119,7 @@ class CommandLineInterface(object):
 
         # Pointer to sub CLI. (In chain of CLI instances.)
         self._sub_cli = None  # None or other CommandLineInterface instance.
+        self._sub_cli_done_callback = None
 
         # Events.
         self.on_initialize = Event(self, application.on_initialize)
@@ -485,12 +486,13 @@ class CommandLineInterface(object):
             # and reset the renderer. (This reset will also quit the alternate
             # screen, if the sub application used that.)
             sub_cli._redraw()
-            if application.erase_when_done:
+            if application.application.erase_when_done:
                 sub_cli.renderer.erase()
             sub_cli.renderer.reset()
             sub_cli._is_running = False  # Don't render anymore.
 
             self._sub_cli = None
+            self._sub_cli_done_callback = None
 
             # Restore main application.
             if not _from_application_generator:
@@ -503,15 +505,21 @@ class CommandLineInterface(object):
 
         # Create sub CommandLineInterface.
         sub_cli = application
-   #     sub_cli = CommandLineInterface(
-   #         application=application,
-   #         eventloop=_SubApplicationEventLoop(self, done),
-   #         input=self.input,
-   #         output=self.output)
-        sub_cli._is_running = True  # Allow rendering of sub app.
+
+        # Patch the sub cli to not stop the main event loop.
+        # XXX: This is not clean. We should not monkey-patch!
+        def _set_return_callable(value):
+            assert callable(value)
+            sub_cli._return_value = value
+            done()
+        sub_cli._set_return_callable = _set_return_callable
+
+        # Allow rendering of sub app.
+        sub_cli._is_running = True
 
         sub_cli._redraw()
         self._sub_cli = sub_cli
+        self._sub_cli_done_callback = done
 
     def exit(self):
         """
@@ -567,6 +575,7 @@ class CommandLineInterface(object):
         assert callable(value)
         self._return_value = value
 
+        # Stop main application.
         if self.eventloop:
             self.eventloop.stop()
 
@@ -949,50 +958,6 @@ class _StdoutProxy(object):
         """
         with self._lock:
             self._flush()
-
-
-class _SubApplicationEventLoop(EventLoop):
-    """
-    Eventloop used by sub applications.
-
-    A sub application is an `Application` that is "spawned" by a parent
-    application. The parent application is suspended temporarily and the sub
-    application is displayed instead.
-
-    It doesn't need it's own event loop. The `EventLoopCallbacks` from the
-    parent application are redirected to the sub application. So if the event
-    loop that is run by the parent application detects input, the callbacks
-    will make sure that it's forwarded to the sub application.
-
-    When the sub application has a return value set, it will terminate
-    by calling the `stop` method of this event loop. This is used to
-    transfer control back to the parent application.
-    """
-    def __init__(self, cli, stop_callback):
-        assert isinstance(cli, CommandLineInterface)
-        assert callable(stop_callback)
-
-        self.cli = cli
-        self.stop_callback = stop_callback
-
-    def stop(self):
-        self.stop_callback()
-
-    def close(self):
-        pass
-
-    def run_in_executor(self, callback):
-        self.cli.eventloop.run_in_executor(callback)
-
-    def call_from_executor(self, callback, _max_postpone_until=None):
-        self.cli.eventloop.call_from_executor(
-            callback, _max_postpone_until=_max_postpone_until)
-
-    def add_reader(self, fd, callback):
-        self.cli.eventloop.add_reader(fd, callback)
-
-    def remove_reader(self, fd):
-        self.cli.eventloop.remove_reader(fd)
 
 
 class _CombinedRegistry(BaseRegistry):

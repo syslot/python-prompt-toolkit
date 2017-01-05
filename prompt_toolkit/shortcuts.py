@@ -23,11 +23,10 @@ from __future__ import unicode_literals
 
 from .auto_suggest import DynamicAutoSuggest
 from .buffer import Buffer, AcceptAction
-from .cache import memoized
 from .clipboard import DynamicClipboard, InMemoryClipboard
 from .completion import DynamicCompleter
 from .document import Document
-from .enums import DEFAULT_BUFFER, SEARCH_BUFFER, EditingMode, SYSTEM_BUFFER
+from .enums import DEFAULT_BUFFER, SEARCH_BUFFER, EditingMode
 from .eventloop.base import EventLoop
 from .eventloop.defaults import create_event_loop, create_asyncio_event_loop
 from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, Condition
