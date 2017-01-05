@@ -70,7 +70,7 @@ def _display_completions_like_readline(cli, completions):
     This will ask for a confirmation if there are too many completions to fit
     on a single page and provide a paginator to walk through them.
     """
-    from prompt_toolkit.shortcuts import create_confirm_application
+    from prompt_toolkit.shortcuts import create_confirm_prompt
     assert isinstance(completions, list)
 
     # Get terminal dimensions.
@@ -112,8 +112,9 @@ def _display_completions_like_readline(cli, completions):
     def run():
         if len(completions) > completions_per_page:
             # Ask confirmation if it doesn't fit on the screen.
-            message = 'Display all {} possibilities? (y on n) '.format(len(completions))
-            confirm = yield create_confirm_application(message)
+            confirm_prompt = create_confirm_prompt(
+                'Display all {} possibilities? (y on n) '.format(len(completions)))
+            confirm = yield confirm_prompt.cli
 
             if confirm:
                 # Display pages.
@@ -158,5 +159,6 @@ def _create_more_application(loop):
     def _(event):
         event.cli.set_return_value(False)
 
-    return create_prompt_application('--MORE--', 
-        loop=loop, key_bindings_registry=registry, erase_when_done=True)
+    return create_prompt_application('--MORE--',
+        loop=loop, extra_key_bindings=registry,
+        include_default_key_bindings=False, erase_when_done=True)

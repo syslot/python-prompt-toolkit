@@ -4,13 +4,13 @@ Example of adding a custom key binding to a prompt.
 """
 from __future__ import unicode_literals
 from prompt_toolkit import prompt
-from prompt_toolkit.key_binding.defaults import load_key_bindings_for_prompt
+from prompt_toolkit.key_binding.registry import Registry
 from prompt_toolkit.keys import Keys
 
 
 def main():
     # We start with a `Registry` of default key bindings.
-    registry = load_key_bindings_for_prompt()
+    registry = Registry()
 
     # Add our own key binding to the registry of the key bindings manager.
     @registry.add_binding(Keys.F4)
@@ -54,7 +54,7 @@ def main():
 
     # Read input.
     print('Press F4 to insert "hello world", type "xy" to insert "z":')
-    text = prompt('> ', key_bindings_registry=registry)
+    text = prompt('> ', extra_key_bindings=registry)
     print('You said: %s' % text)
 
 

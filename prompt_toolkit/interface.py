@@ -460,7 +460,7 @@ class CommandLineInterface(object):
             'stop' --which returns the result of an application when it's
             done-- is handled differently.
         """
-        assert isinstance(application, Application)
+        assert isinstance(application, CommandLineInterface)  # XXX
         assert done_callback is None or callable(done_callback)
 
         if self._sub_cli is not None:
@@ -596,7 +596,7 @@ class CommandLineInterface(object):
 
         return result
 
-    def run_application_generator(self, coroutine, render_cli_done=False):
+    def run_application_generator(self, coroutine, render_cli_done=False):  # XXX: work with CommandLineInterface
         """
         EXPERIMENTAL
         Like `run_in_terminal`, but takes a generator that can yield Application instances.
@@ -640,7 +640,7 @@ class CommandLineInterface(object):
                 raise
             else:
                 # Process yielded value from coroutine.
-                assert isinstance(result, Application)
+                assert isinstance(result, CommandLineInterface)
                 self.run_sub_application(result, done_callback=step_next,
                                          _from_application_generator=True)
 
@@ -653,7 +653,7 @@ class CommandLineInterface(object):
         # Start processing coroutine.
         step_next()
 
-    def run_system_command(self, command):
+    def run_system_command(self, command):  # XXX: check this!
         """
         Run system command (While hiding the prompt. When finished, all the
         output will scroll above the prompt.)
@@ -667,7 +667,7 @@ class CommandLineInterface(object):
             - This will share the same input/output I/O.
             - This doesn't block the event loop.
             """
-            from .shortcuts import create_prompt_application
+            from .shortcuts import Prompt
 
             registry = Registry()
 
@@ -676,10 +676,10 @@ class CommandLineInterface(object):
             def _(event):
                 event.cli.set_return_value(None)
 
-            application = create_prompt_application(
+            prompt = Prompt(
                 message='Press ENTER to continue...',
                 key_bindings_registry=registry)
-            self.run_sub_application(application)
+            self.run_sub_application(prompt.cli)
 
         def run():
             # Try to use the same input/output file descriptors as the one,

@@ -35,7 +35,7 @@ from .history import InMemoryHistory, DynamicHistory
 from .input import StdinInput
 from .interface import CommandLineInterface, Application, AbortAction
 from .key_binding.defaults import load_key_bindings
-from .key_binding.registry import Registry, DynamicRegistry, MergedRegistry
+from .key_binding.registry import Registry, DynamicRegistry, MergedRegistry, ConditionalRegistry
 from .keys import Keys
 from .layout import Window, HSplit, FloatContainer, Float
 from .layout.containers import ConditionalContainer
@@ -187,15 +187,17 @@ class Prompt(object):
         every so many seconds.
     """
     _fields = (
-        'message', 'lexer', 'completer', 'is_password',
-        'extra_key_bindings', 'is_password', 'get_bottom_toolbar_tokens',
-        'style', 'get_prompt_tokens', 'get_rprompt_tokens', 'multiline',
-        'get_continuation_tokens', 'wrap_lines', 'history',
-        'enable_history_search', 'complete_while_typing', 'on_abort',
-        'on_exit', 'display_completions_in_columns', 'mouse_support',
-        'auto_suggest', 'clipboard', 'get_title', 'validator', 'patch_stdout',
+        'message', 'lexer', 'completer', 'is_password', 'editing_mode',
+        'extra_key_bindings', 'include_default_key_bindings', 'is_password',
+        'get_bottom_toolbar_tokens', 'style', 'get_prompt_tokens',
+        'get_rprompt_tokens', 'multiline', 'get_continuation_tokens',
+        'wrap_lines', 'history', 'enable_history_search',
+        'complete_while_typing', 'on_abort', 'on_exit',
+        'display_completions_in_columns', 'mouse_support', 'auto_suggest',
+        'clipboard', 'get_title', 'validator', 'patch_stdout',
         'refresh_interval', 'extra_input_processor', 'default',
-        'enable_system_bindings', 'enable_open_in_editor')
+        'enable_system_bindings', 'enable_open_in_editor',
+        'reserve_space_for_menu')
 
     def __init__(
             self,
@@ -228,6 +230,7 @@ class Prompt(object):
             mouse_support=False,
             extra_input_processor=None,
             extra_key_bindings=None,
+            include_default_key_bindings=True,
             on_abort=AbortAction.RAISE_EXCEPTION,
             on_exit=AbortAction.RAISE_EXCEPTION,
             erase_when_done=False,
@@ -268,7 +271,7 @@ class Prompt(object):
 
         # Store all settings in this class.
         for name in self._fields:
-            if name not in ('on_abort', 'on_exit'):
+            if name not in ('on_abort', 'on_exit', 'editing_mode'):
                 value = locals()[name]
                 setattr(self, name, value)
 
@@ -464,7 +467,9 @@ class Prompt(object):
             style=DynamicStyle(lambda: self.style or DEFAULT_STYLE),
             clipboard=DynamicClipboard(lambda: self.clipboard),
             key_bindings_registry=MergedRegistry([
-                default_bindings,
+                ConditionalRegistry(
+                    default_bindings,
+                    dyncond('include_default_key_bindings')),
                 DynamicRegistry(lambda: self.extra_key_bindings),
             ]),
             get_title=self._get_title,
@@ -535,9 +540,9 @@ class Prompt(object):
     def prompt(
             self, message=None,
             # When any of these arguments are passed, this value is overwritten for the current prompt.
-            default='', patch_stdout=None, true_color=None,
+            default='', patch_stdout=None, true_color=None, editing_mode=None,
             refresh_interval=None, vi_mode=None, lexer=None, completer=None,
-            is_password=None, extra_key_bindings=None,
+            is_password=None, extra_key_bindings=None, include_default_key_bindings=None,
             get_bottom_toolbar_tokens=None, style=None, get_prompt_tokens=None,
             get_rprompt_tokens=None, multiline=None,
             get_continuation_tokens=None, wrap_lines=None, history=None,
@@ -545,6 +550,7 @@ class Prompt(object):
             complete_while_typing=None, display_completions_in_columns=None,
             auto_suggest=None, validator=None, clipboard=None,
             mouse_support=None, get_title=None, extra_input_processor=None,
+            reserve_space_for_menu=None,
             enable_system_bindings=False, enable_open_in_editor=False):
         """
         Display the prompt.
@@ -575,9 +581,9 @@ class Prompt(object):
         exec_(textwrap.dedent('''
     async def prompt_async(self, message=None,
             # When any of these arguments are passed, this value is overwritten for the current prompt.
-            default='', patch_stdout=None, true_color=None,
+            default='', patch_stdout=None, true_color=None, editing_mode=None,
             refresh_interval=None, vi_mode=None, lexer=None, completer=None,
-            is_password=None, extra_key_bindings=None,
+            is_password=None, extra_key_bindings=None, include_default_key_bindings=None,
             get_bottom_toolbar_tokens=None, style=None, get_prompt_tokens=None,
             get_rprompt_tokens=None, multiline=None,
             get_continuation_tokens=None, wrap_lines=None, history=None,
@@ -585,6 +591,7 @@ class Prompt(object):
             complete_while_typing=None, display_completions_in_columns=None,
             auto_suggest=None, validator=None, clipboard=None,
             mouse_support=None, get_title=None, extra_input_processor=None,
+            reserve_space_for_menu=None,
             enable_system_bindings=False, enable_open_in_editor=False):
         """
         Display the prompt (run in async IO coroutine).
@@ -709,9 +716,9 @@ def prompt_async(*a, **kw):
     return prompt.prompt_async(*a, **kw)
 
 
-def confirm(message='Confirm (y or n) '):
+def create_confirm_prompt(message):
     """
-    Display a confirmation prompt that returns True/False.
+    Create a `Prompt` object for the 'confirm' function.
     """
     assert isinstance(message, text_type)
     registry = Registry()
@@ -719,17 +726,26 @@ def confirm(message='Confirm (y or n) '):
     @registry.add_binding('y')
     @registry.add_binding('Y')
     def _(event):
-        p._default_buffer.text = 'y'
+        prompt._default_buffer.text = 'y'
         event.cli.set_return_value(True)
 
     @registry.add_binding('n')
     @registry.add_binding('N')
     @registry.add_binding(Keys.ControlC)
     def _(event):
-        p._default_buffer.text = 'n'
+        prompt._default_buffer.text = 'n'
         event.cli.set_return_value(False)
 
-    p = Prompt(message, key_bindings_registry=registry)
+    prompt = Prompt(message, extra_key_bindings=registry,
+                    include_default_key_bindings=False)
+    return prompt
+
+
+def confirm(message='Confirm (y or n) '):
+    """
+    Display a confirmation prompt that returns True/False.
+    """
+    p = create_confirm_prompt(message)
     try:
         return p.prompt()
     finally:
