@@ -653,7 +653,7 @@ class ReverseSearchProcessor(Processor):
                 accepted_processors = [filter_processor(p) for p in item.processors]
                 accepted_processors = [p for p in accepted_processors if p is not None]
 
-                if accepted_processors > 1:
+                if len(accepted_processors) > 1:
                     return MergedProcessor(accepted_processors)
                 elif accepted_processors == 1:
                     return accepted_processors[0]
@@ -703,11 +703,14 @@ class ReverseSearchProcessor(Processor):
 
             tokens_before = [
                 (Token.Prompt.Search, '('),
-                (Token.Prompt.Search.Text, direction_text),
-                (Token.Prompt.Search, ')`')
+                (Token.Prompt.Search, direction_text),
+                (Token.Prompt.Search, ')`'),
             ]
-            tokens_after = [(Token, "': ")]
-            tokens = tokens_before + ti.tokens + tokens_after + line_tokens
+
+            tokens = tokens_before + [
+                (Token.Prompt.Search.Text, token_list_to_text(ti.tokens)),
+                (Token, "': "),
+            ] + line_tokens
 
             shift_position = token_list_len(tokens_before)
             source_to_display = lambda i: i + shift_position
