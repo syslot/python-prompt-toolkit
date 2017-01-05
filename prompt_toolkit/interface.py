@@ -73,6 +73,7 @@ class CommandLineInterface(object):
         self.application = application
         self.eventloop = eventloop
         self._is_running = False
+        self._done_callback = None
 
         # Inputs and outputs.
         self.output = output or create_output()
@@ -119,7 +120,6 @@ class CommandLineInterface(object):
 
         # Pointer to sub CLI. (In chain of CLI instances.)
         self._sub_cli = None  # None or other CommandLineInterface instance.
-        self._sub_cli_done_callback = None
 
         # Events.
         self.on_initialize = Event(self, application.on_initialize)
@@ -360,7 +360,7 @@ class CommandLineInterface(object):
             c()
         del self.pre_run_callables[:]
 
-    def run(self, pre_run=None):
+    def run(self, pre_run=None, _done=None):
         """
         Read input from the command line.
         This runs the eventloop until a return value has been set.
@@ -369,9 +369,11 @@ class CommandLineInterface(object):
             place. This allows custom initialisation.
         """
         assert pre_run is None or callable(pre_run)
+        assert _done is None or callable(_done)
 
         try:
             self._is_running = True
+            self._done_callback = _done or self.eventloop.stop
 
             self.on_start.fire()
             self.reset()
@@ -408,7 +410,7 @@ class CommandLineInterface(object):
         # because it contains syntax which is not supported on older Python
         # versions. (A 'return' inside a generator.)
         six.exec_(textwrap.dedent('''
-        async def run_async(self, pre_run=None):
+        async def run_async(self, pre_run=None, _done=None):
             """
             Same as `run`, but this returns a coroutine.
 
@@ -418,6 +420,7 @@ class CommandLineInterface(object):
 
             try:
                 self._is_running = True
+                self._done_callback = _done or self.eventloop.stop
 
                 self.on_start.fire()
                 self.reset()
@@ -492,7 +495,6 @@ class CommandLineInterface(object):
             sub_cli._is_running = False  # Don't render anymore.
 
             self._sub_cli = None
-            self._sub_cli_done_callback = None
 
             # Restore main application.
             if not _from_application_generator:
@@ -506,20 +508,15 @@ class CommandLineInterface(object):
         # Create sub CommandLineInterface.
         sub_cli = application
 
-        # Patch the sub cli to not stop the main event loop.
-        # XXX: This is not clean. We should not monkey-patch!
-        def _set_return_callable(value):
-            assert callable(value)
-            sub_cli._return_value = value
-            done()
-        sub_cli._set_return_callable = _set_return_callable
+        # Make sure that when the sub cli is finished, it won't terminate the
+        # event loop, but instead call this callback.
+        sub_cli._done_callback = done
 
         # Allow rendering of sub app.
         sub_cli._is_running = True
 
         sub_cli._redraw()
         self._sub_cli = sub_cli
-        self._sub_cli_done_callback = done
 
     def exit(self):
         """
@@ -576,8 +573,8 @@ class CommandLineInterface(object):
         self._return_value = value
 
         # Stop main application.
-        if self.eventloop:
-            self.eventloop.stop()
+        if self._done_callback:
+            self._done_callback()
 
     def run_in_terminal(self, func, render_cli_done=False):
         """
