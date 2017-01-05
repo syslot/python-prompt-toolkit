@@ -13,7 +13,6 @@ from prompt_toolkit.filters import to_cli_filter
 
 __all__ = (
     'load_key_bindings',
-    'load_key_bindings_for_prompt',
 )
 
 
@@ -96,20 +95,3 @@ def load_key_bindings(
     ])
 
     return registry
-
-
-def load_key_bindings_for_prompt(**kw):
-    """
-    Create a ``Registry`` object with the defaults key bindings for an input
-    prompt.
-
-    This activates the key bindings for abort/exit (Ctrl-C/Ctrl-D),
-    incremental search and auto suggestions.
-
-    (Not for full screen applications.)
-    """
-    kw.setdefault('enable_abort_and_exit_bindings', True)
-    kw.setdefault('enable_search', True)
-    kw.setdefault('enable_auto_suggest_bindings', True)
-
-    return load_key_bindings(**kw)

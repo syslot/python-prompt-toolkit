@@ -34,8 +34,8 @@ from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, 
 from .history import InMemoryHistory, DynamicHistory
 from .input import StdinInput
 from .interface import CommandLineInterface, Application, AbortAction
-from .key_binding.defaults import load_key_bindings_for_prompt
-from .key_binding.registry import Registry, DynamicRegistry
+from .key_binding.defaults import load_key_bindings
+from .key_binding.registry import Registry, DynamicRegistry, MergedRegistry
 from .keys import Keys
 from .layout import Window, HSplit, FloatContainer, Float
 from .layout.containers import ConditionalContainer
@@ -188,13 +188,14 @@ class Prompt(object):
     """
     _fields = (
         'message', 'lexer', 'completer', 'is_password',
-        'key_bindings_registry', 'is_password', 'get_bottom_toolbar_tokens',
+        'extra_key_bindings', 'is_password', 'get_bottom_toolbar_tokens',
         'style', 'get_prompt_tokens', 'get_rprompt_tokens', 'multiline',
         'get_continuation_tokens', 'wrap_lines', 'history',
         'enable_history_search', 'complete_while_typing', 'on_abort',
         'on_exit', 'display_completions_in_columns', 'mouse_support',
         'auto_suggest', 'clipboard', 'get_title', 'validator', 'patch_stdout',
-        'refresh_interval', 'extra_input_processor', 'default')
+        'refresh_interval', 'extra_input_processor', 'default',
+        'enable_system_bindings', 'enable_open_in_editor')
 
     def __init__(
             self,
@@ -226,7 +227,7 @@ class Prompt(object):
             get_title=None,
             mouse_support=False,
             extra_input_processor=None,
-            key_bindings_registry=None,
+            extra_key_bindings=None,
             on_abort=AbortAction.RAISE_EXCEPTION,
             on_exit=AbortAction.RAISE_EXCEPTION,
             erase_when_done=False,
@@ -244,6 +245,7 @@ class Prompt(object):
         assert not (message and get_prompt_tokens)
         assert style is None or isinstance(style, Style)
         assert extra_input_processor is None or isinstance(extra_input_processor, Processor)
+        assert extra_key_bindings is None or isinstance(extra_key_bindings, Registry)
 
         # Defaults.
         loop = loop or create_event_loop()
@@ -254,23 +256,6 @@ class Prompt(object):
 
         history = history or InMemoryHistory()
         clipboard = clipboard or InMemoryClipboard()
-
-        # Default key bindings.
-        if key_bindings_registry is None:
-            key_bindings_registry = load_key_bindings_for_prompt(
-                enable_system_bindings=enable_system_bindings,
-                enable_open_in_editor=enable_open_in_editor)
-
-            @Condition
-            def do_accept(cli):
-                return (not _true(self.multiline) and
-                        self.cli.focussed_control == self._default_buffer_control)
-
-            @key_bindings_registry.add_binding(Keys.ControlM, filter=do_accept)
-            def _(event):
-                " Accept input when enter has been pressed. "
-                buff = self._default_buffer
-                buff.accept_action.validate_and_handle(event.cli, buff)
 
         # Ensure backwards-compatibility, when `vi_mode` is passed.
         if vi_mode:
@@ -453,13 +438,35 @@ class Prompt(object):
             bottom_toolbar,
         ])
 
+        # Default key bindings.
+        default_bindings = load_key_bindings(
+            enable_abort_and_exit_bindings=True,
+            enable_search=True,
+            enable_auto_suggest_bindings=True,
+            enable_system_bindings=dyncond('enable_system_bindings'),
+            enable_open_in_editor=dyncond('enable_open_in_editor'))
+
+        @Condition
+        def do_accept(cli):
+            return (not _true(self.multiline) and
+                    self.cli.focussed_control == self._default_buffer_control)
+
+        @default_bindings.add_binding(Keys.ControlM, filter=do_accept)
+        def _(event):
+            " Accept input when enter has been pressed. "
+            buff = self._default_buffer
+            buff.accept_action.validate_and_handle(event.cli, buff)
+
         # Create application
         application = Application(
             layout=layout,
             focussed_control=default_buffer_control,
             style=DynamicStyle(lambda: self.style or DEFAULT_STYLE),
             clipboard=DynamicClipboard(lambda: self.clipboard),
-            key_bindings_registry=DynamicRegistry(lambda: self.key_bindings_registry),
+            key_bindings_registry=MergedRegistry([
+                default_bindings,
+                DynamicRegistry(lambda: self.extra_key_bindings),
+            ]),
             get_title=self._get_title,
             mouse_support=dyncond('mouse_support'),
             editing_mode=editing_mode,
@@ -530,14 +537,15 @@ class Prompt(object):
             # When any of these arguments are passed, this value is overwritten for the current prompt.
             default='', patch_stdout=None, true_color=None,
             refresh_interval=None, vi_mode=None, lexer=None, completer=None,
-            is_password=None, key_bindings_registry=None,
+            is_password=None, extra_key_bindings=None,
             get_bottom_toolbar_tokens=None, style=None, get_prompt_tokens=None,
             get_rprompt_tokens=None, multiline=None,
             get_continuation_tokens=None, wrap_lines=None, history=None,
             enable_history_search=None, on_abort=None, on_exit=None,
             complete_while_typing=None, display_completions_in_columns=None,
             auto_suggest=None, validator=None, clipboard=None,
-            mouse_support=None, get_title=None, extra_input_processor=None):
+            mouse_support=None, get_title=None, extra_input_processor=None,
+            enable_system_bindings=False, enable_open_in_editor=False):
         """
         Display the prompt.
         """
@@ -569,14 +577,15 @@ class Prompt(object):
             # When any of these arguments are passed, this value is overwritten for the current prompt.
             default='', patch_stdout=None, true_color=None,
             refresh_interval=None, vi_mode=None, lexer=None, completer=None,
-            is_password=None, key_bindings_registry=None,
+            is_password=None, extra_key_bindings=None,
             get_bottom_toolbar_tokens=None, style=None, get_prompt_tokens=None,
             get_rprompt_tokens=None, multiline=None,
             get_continuation_tokens=None, wrap_lines=None, history=None,
             enable_history_search=None, on_abort=None, on_exit=None,
             complete_while_typing=None, display_completions_in_columns=None,
             auto_suggest=None, validator=None, clipboard=None,
-            mouse_support=None, get_title=None, extra_input_processor=None):
+            mouse_support=None, get_title=None, extra_input_processor=None,
+            enable_system_bindings=False, enable_open_in_editor=False):
         """
         Display the prompt (run in async IO coroutine).
         This is only available in Python 3.5 or newer.

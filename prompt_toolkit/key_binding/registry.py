@@ -375,9 +375,31 @@ class DynamicRegistry(BaseRegistry):
     def __init__(self, get_registry):
         assert callable(get_registry)
         self.get_registry = get_registry
+        self.__version = 0
+        self._last_child_version = None
+        self._dummy = Registry()  # Empty registry.
+
+    def _get(self):
+        return self.get_registry() or self._dummy
+
+    @property
+    def _version(self):
+        # Make sure that we have a monotonically increasing version number.
+        registry = self._get()
+        version = id(registry), registry._version
+
+        if self._last_child_version != version:
+            self.__version += 1
+            self._last_child_version = version
+
+        return self.__version
 
     def get_bindings_for_keys(self, keys):
-        return self.get_registry().get_bindings_for_keys(keys)
+        return self._get().get_bindings_for_keys(keys)
 
     def get_bindings_starting_with_keys(self, keys):
-        return self.get_registry().get_bindings_starting_with_keys(keys)
+        return self._get().get_bindings_starting_with_keys(keys)
+
+    @property
+    def key_bindings(self):
+        return self._get().key_bindings

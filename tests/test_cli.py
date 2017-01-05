@@ -51,7 +51,7 @@ def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
             loop=loop,
             name=DEFAULT_BUFFER,
             accept_action=AcceptAction.RETURN_DOCUMENT,
-            history=history, is_multiline=multiline)
+            history=history)
 
         buffer_control = BufferControl(buffer=default_buffer)
 
