@@ -160,9 +160,10 @@ def load_basic_bindings():
 
     @handle(Keys.ControlJ)
     def _(event):
-        """
+        r"""
         By default, handle \n as if it were a \r (enter).
-        (It appears that some terminals send \r instead of \r when pressing enter.)
+        (It appears that some terminals send \n instead of \r when pressing
+        enter. - at least the Linux subsytem for Windows.)
         """
         event.input_processor.feed(
             KeyPress(Keys.ControlM, '\r'))
