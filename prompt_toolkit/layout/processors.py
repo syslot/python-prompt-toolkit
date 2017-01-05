@@ -660,8 +660,9 @@ class ReverseSearchProcessor(Processor):
 
             # For a `ConditionalProcessor`, check the body.
             elif isinstance(item, ConditionalProcessor):
-                if not isinstance(item.processor, excluded_processors):
-                    return item
+                p = filter_processor(item.processor)
+                if p:
+                    return ConditionalProcessor(p, item.filter)
 
             # Otherwise, check the processor itself.
             else:
