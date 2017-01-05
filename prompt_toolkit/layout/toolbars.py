@@ -55,7 +55,6 @@ class SystemToolbarControl(BufferControl):
         handle = emacs_registry.add_binding
 
         @handle(Keys.Escape, '!', filter= ~has_focus & EmacsMode())
-        @handle('x')
         def _(event):
             " M-'!' will focus this user control. "
             event.cli.focussed_control = self
