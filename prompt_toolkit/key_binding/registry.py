@@ -342,7 +342,7 @@ class MergedRegistry(_ProxyMixin):
             self._last_version = expected_version
 
 
-class DynamicRegistry(BaseRegistry):
+class DynamicRegistry(_ProxyMixin):
     """
     Registry class that can dynamically returns any Registry.
 
@@ -355,27 +355,10 @@ class DynamicRegistry(BaseRegistry):
         self._last_child_version = None
         self._dummy = Registry()  # Empty registry.
 
-    def _get(self):
-        return self.get_registry() or self._dummy
-
-    @property
-    def _version(self):
-        # Make sure that we have a monotonically increasing version number.
-        registry = self._get()
+    def _update_cache(self):
+        registry = self.get_registry() or self._dummy
+        assert isinstance(registry, BaseRegistry)
         version = id(registry), registry._version
 
-        if self._last_child_version != version:
-            self.__version += 1
-            self._last_child_version = version
-
-        return self.__version
-
-    def get_bindings_for_keys(self, keys):
-        return self._get().get_bindings_for_keys(keys)
-
-    def get_bindings_starting_with_keys(self, keys):
-        return self._get().get_bindings_starting_with_keys(keys)
-
-    @property
-    def key_bindings(self):
-        return self._get().key_bindings
+        self._registry2 = registry
+        self._last_version = version
