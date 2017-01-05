@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 from prompt_toolkit.buffer import SelectionType, indent, unindent
 from prompt_toolkit.keys import Keys
-from prompt_toolkit.enums import SearchDirection, SYSTEM_BUFFER
+from prompt_toolkit.enums import SearchDirection
 from prompt_toolkit.filters import Condition, EmacsMode, HasSelection, EmacsInsertMode, HasFocus, HasArg, IsSearching, ControlIsSearchable
 from prompt_toolkit.completion import CompleteEvent
 
@@ -13,7 +13,6 @@ from ..registry import Registry, ConditionalRegistry
 __all__ = (
     'load_emacs_bindings',
     'load_emacs_search_bindings',
-    'load_emacs_system_bindings',
     'load_extra_emacs_page_navigation_bindings',
 )
 
@@ -308,44 +307,6 @@ def load_emacs_open_in_editor_bindings():
     registry.add_binding(Keys.ControlX, Keys.ControlE,
                          filter=EmacsMode() & ~HasSelection())(
          get_by_name('edit-and-execute-command'))
-
-    return registry
-
-
-def load_emacs_system_bindings():
-    registry = ConditionalRegistry(Registry(), EmacsMode())
-    handle = registry.add_binding
-
-    has_focus = HasFocus(SYSTEM_BUFFER)
-
-    @handle(Keys.Escape, '!', filter= ~has_focus)
-    def _(event):
-        """
-        M-'!' opens the system prompt.
-        """
-        event.cli.push_focus(SYSTEM_BUFFER)
-
-    @handle(Keys.Escape, filter=has_focus)
-    @handle(Keys.ControlG, filter=has_focus)
-    @handle(Keys.ControlC, filter=has_focus)
-    def _(event):
-        """
-        Cancel system prompt.
-        """
-        event.cli.buffers[SYSTEM_BUFFER].reset()
-        event.cli.focus.focus_previous()
-
-    @handle(Keys.Enter, filter=has_focus)
-    def _(event):
-        """
-        Run system command.
-        """
-        system_line = event.cli.buffers[SYSTEM_BUFFER]
-        event.cli.run_system_command(system_line.text)
-        system_line.reset(append_to_history=True)
-
-        # Focus previous buffer again.
-        event.cli.focus.focus_previous()
 
     return registry
 

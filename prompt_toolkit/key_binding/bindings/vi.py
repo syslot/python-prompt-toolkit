@@ -33,7 +33,6 @@ except ImportError: # < Python 3.2
 __all__ = (
     'load_vi_bindings',
     'load_vi_search_bindings',
-    'load_vi_system_bindings',
     'load_extra_vi_page_navigation_bindings',
 )
 
@@ -1710,48 +1709,6 @@ def load_vi_open_in_editor_bindings():
 
     registry.add_binding('v', filter=navigation_mode)(
         get_by_name('edit-and-execute-command'))
-    return registry
-
-
-def load_vi_system_bindings():
-    registry = ConditionalRegistry(Registry(), ViMode())
-    handle = registry.add_binding
-
-    has_focus = filters.HasFocus(SYSTEM_BUFFER)
-    navigation_mode = ViNavigationMode()
-
-    @handle('!', filter=~has_focus & navigation_mode)
-    def _(event):
-        """
-        '!' opens the system prompt.
-        """
-        event.cli.push_focus(SYSTEM_BUFFER)
-        event.cli.vi_state.input_mode = InputMode.INSERT
-
-    @handle(Keys.Escape, filter=has_focus)
-    @handle(Keys.ControlC, filter=has_focus)
-    def _(event):
-        """
-        Cancel system prompt.
-        """
-        event.cli.vi_state.input_mode = InputMode.NAVIGATION
-        event.cli.buffers[SYSTEM_BUFFER].reset()
-        event.cli.focus.focus_previous()
-
-    @handle(Keys.Enter, filter=has_focus)
-    def _(event):
-        """
-        Run system command.
-        """
-        event.cli.vi_state.input_mode = InputMode.NAVIGATION
-
-        system_buffer = event.cli.buffers[SYSTEM_BUFFER]
-        event.cli.run_system_command(system_buffer.text)
-        system_buffer.reset(append_to_history=True)
-
-        # Focus previous buffer again.
-        event.cli.focus.focus_previous()
-
     return registry
 
 

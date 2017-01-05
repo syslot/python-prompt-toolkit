@@ -56,17 +56,3 @@ class Focus(object):
         """
         if len(self._stack) > 1:
             self._stack = self._stack[:-1]
-
-#    def focussable_controls(self):
-#        """
-#        Return a list of `UIControl` objects that are focussable in the current
-#        layout.
-#        """
-#        def get_all():
-#            for ui_control in find_all_controls(self.layout):
-#                if ui_control.is_focussable(cli):
-#
-#    def focus_next(self):
-#        """
-#        Focus the next user control.
-#        """

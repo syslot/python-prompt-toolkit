@@ -1059,6 +1059,9 @@ class Window(Container):
         Write window to screen. This renders the user control, the margins and
         copies everything over to the absolute position at the given screen.
         """
+        # Add current user control to the list of rendered user controls.
+        cli.rendered_user_controls.append(self.content)
+
         # Calculate margin sizes.
         left_margin_widths = [self._get_margin_width(cli, m) for m in self.left_margins]
         right_margin_widths = [self._get_margin_width(cli, m) for m in self.right_margins]

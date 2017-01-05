@@ -1,18 +1,19 @@
 from __future__ import unicode_literals
 
-from ..enums import SearchDirection
-
-from .processors import BeforeInput
-
-from .lexers import SimpleLexer
-from .dimension import LayoutDimension
-from .controls import BufferControl, TokenListControl, UIControl, UIContent
 from .containers import Window, ConditionalContainer
+from .controls import BufferControl, TokenListControl, UIControl, UIContent, UIControlKeyBindings
+from .dimension import LayoutDimension
+from .lexers import SimpleLexer
+from .processors import BeforeInput
 from .screen import Char
 from .utils import token_list_len
 from prompt_toolkit.buffer import Buffer
-from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone
+from prompt_toolkit.enums import SYSTEM_BUFFER, SearchDirection
+from prompt_toolkit.key_binding.vi_state import InputMode
+from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone, EmacsMode, ViMode, ViNavigationMode
+from prompt_toolkit.key_binding.registry import Registry, MergedRegistry, ConditionalRegistry
 from prompt_toolkit.token import Token
+from prompt_toolkit.keys import Keys
 
 __all__ = (
     'TokenListToolbar',
@@ -34,23 +35,88 @@ class TokenListToolbar(ConditionalContainer):
 
 
 class SystemToolbarControl(BufferControl):
-    def __init__(self, system_buffer):
+    def __init__(self, loop):
         token = Token.Toolbar.System
+        self.system_buffer = Buffer(name=SYSTEM_BUFFER, loop=loop)
 
         super(SystemToolbarControl, self).__init__(
-            buffer=system_buffer,
+            buffer=self.system_buffer,
             default_char=Char(token=token),
             lexer=SimpleLexer(token=token.Text),
             input_processor=BeforeInput.static('Shell command: ', token))
 
+        self._registry = self._build_key_bindings()
+
+    def _build_key_bindings(self):
+        has_focus = HasFocus(self.system_buffer)
+
+        # Emacs
+        emacs_registry = Registry()
+        handle = emacs_registry.add_binding
+
+        @handle(Keys.Escape, '!', filter= ~has_focus & EmacsMode())
+        @handle('x')
+        def _(event):
+            " M-'!' will focus this user control. "
+            event.cli.focussed_control = self
+
+        @handle(Keys.Escape, filter=has_focus)
+        @handle(Keys.ControlG, filter=has_focus)
+        @handle(Keys.ControlC, filter=has_focus)
+        def _(event):
+            " Hide system prompt. "
+            self.system_buffer.reset()
+            event.cli.focus.focus_previous()
+
+        @handle(Keys.Enter, filter=has_focus)
+        def _(event):
+            " Run system command. "
+            event.cli.run_system_command(self.system_buffer.text)
+            self.system_buffer.reset(append_to_history=True)
+            event.cli.focus.focus_previous()
+
+        # Vi.
+        vi_registry = Registry()
+        handle = vi_registry.add_binding
+
+        @handle('!', filter=~has_focus & ViNavigationMode())
+        def _(event):
+            " Focus. "
+            event.cli.vi_state.input_mode = InputMode.INSERT
+            event.cli.focussed_control = self
+
+        @handle(Keys.Escape, filter=has_focus)
+        @handle(Keys.ControlC, filter=has_focus)
+        def _(event):
+            " Hide system prompt. "
+            event.cli.vi_state.input_mode = InputMode.NAVIGATION
+            self.system_buffer.reset()
+            event.cli.focus.focus_previous()
+
+        @handle(Keys.Enter, filter=has_focus)
+        def _(event):
+            " Run system command. "
+            event.cli.vi_state.input_mode = InputMode.NAVIGATION
+            event.cli.run_system_command(self.system_buffer.text)
+            self.system_buffer.reset(append_to_history=True)
+            event.cli.focus.focus_previous()
+
+        return MergedRegistry([
+            ConditionalRegistry(emacs_registry, EmacsMode()),
+            ConditionalRegistry(vi_registry, ViMode()),
+        ])
+
+    def get_key_bindings(self, cli):
+        return UIControlKeyBindings(registry=self._registry, modal=False)
+
 
 class SystemToolbar(ConditionalContainer):
-    def __init__(self, system_buffer):
+    def __init__(self, loop):
+        self.control = SystemToolbarControl(loop=loop)
         super(SystemToolbar, self).__init__(
-            content=Window(
-                SystemToolbarControl(system_buffer),
+            content=Window(self.control,
                 height=LayoutDimension.exact(1)),
-            filter=HasFocus(system_buffer) & ~IsDone())
+            filter=HasFocus(self.control.system_buffer) & ~IsDone())
 
 
 class ArgToolbarControl(TokenListControl):

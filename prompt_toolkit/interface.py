@@ -100,6 +100,10 @@ class CommandLineInterface(object):
         #: rendering.
         self.render_counter = 0
 
+        #: List of which user controls have been painted to the screen. (The
+        #: visible controls.)
+        self.rendered_user_controls = []
+
         #: When there is high CPU, postpone the renderering max x seconds.
         #: '0' means: don't postpone. '.5' means: try to draw at least twice a second.
         self.max_render_postpone_time = 0  # E.g. .5
@@ -109,7 +113,7 @@ class CommandLineInterface(object):
         self._invalidate_events = []  # Collection of 'invalidate' Event objects.
 
         #: The `InputProcessor` instance.
-        self.input_processor = InputProcessor(_DynamicRegistry(self), weakref.ref(self))
+        self.input_processor = InputProcessor(_CombinedRegistry(self), weakref.ref(self))
 
         self._async_completers = {}  # Map buffer name to completer function.
 
@@ -294,6 +298,11 @@ class CommandLineInterface(object):
         """
         # Only draw when no sub application was started.
         if self._is_running and self._sub_cli is None:
+            # Clear the 'rendered_ui_controls' list. (The `Window` class will
+            # populate this during the next rendering.)
+            self.rendered_user_controls = []
+
+            # Render
             self.render_counter += 1
             self.renderer.render(self, self.layout, is_done=self.is_done)
 
@@ -493,11 +502,12 @@ class CommandLineInterface(object):
                 done_callback(sub_cli.return_value())
 
         # Create sub CommandLineInterface.
-        sub_cli = CommandLineInterface(
-            application=application,
-            eventloop=_SubApplicationEventLoop(self, done),
-            input=self.input,
-            output=self.output)
+        sub_cli = application
+   #     sub_cli = CommandLineInterface(
+   #         application=application,
+   #         eventloop=_SubApplicationEventLoop(self, done),
+   #         input=self.input,
+   #         output=self.output)
         sub_cli._is_running = True  # Allow rendering of sub app.
 
         sub_cli._redraw()
@@ -678,7 +688,8 @@ class CommandLineInterface(object):
 
             prompt = Prompt(
                 message='Press ENTER to continue...',
-                key_bindings_registry=registry)
+                extra_key_bindings=registry,
+                include_default_key_bindings=False)
             self.run_sub_application(prompt.cli)
 
         def run():
@@ -984,7 +995,7 @@ class _SubApplicationEventLoop(EventLoop):
         self.cli.eventloop.remove_reader(fd)
 
 
-class _DynamicRegistry(BaseRegistry):
+class _CombinedRegistry(BaseRegistry):
     """
     The `Registry` of key bindings for a `CommandLineInterface`.
     This merges the global key bindings with the one of the current user
@@ -994,30 +1005,45 @@ class _DynamicRegistry(BaseRegistry):
         self.cli = cli
         self._cache = SimpleCache()
 
-    def _create_registry(self, ui_control):
+    def _create_registry(self, current_control, visible_controls):
         """
         Create a `Registry` object that merges the `Registry` from the
-        `UIControl` with the global registry.
+        `UIControl` with the other user controls and the global registry.
         """
-        ui_key_bindings = ui_control.get_key_bindings(self.cli)
+        # Collect key bindings of other visible user controls.
+        key_bindings = [c.get_key_bindings(self.cli) for c in visible_controls]
+        key_bindings = [b.registry for b in key_bindings if b is not None]
+
+        others_registry = MergedRegistry(
+            [self.cli.application.key_bindings_registry] + key_bindings)
+
+        ui_key_bindings = current_control.get_key_bindings(self.cli)
 
         if ui_key_bindings is None:
-            return self.cli.application.key_bindings_registry
+            # No bindings for this user control. Just return everything else.
+            return others_registry
         else:
+            # Bindings for this user control found.
+            # Keep the 'modal' parameter into account.
             @Condition
-            def inherit_global_key_bindings(cli):
-                return ui_key_bindings.inherit_global_bindings
+            def is_not_modal(cli):
+                return not ui_key_bindings.modal
 
             return MergedRegistry([
-                ConditionalRegistry(self.cli.application.key_bindings_registry,
-                                    filter=ui_key_bindings.inherit_global_bindings),
+                ConditionalRegistry(others_registry, is_not_modal),
                 ui_key_bindings.registry,
             ])
 
     @property
     def _registry(self):
-        ui_control = self.cli.focussed_control
-        return self._cache.get(ui_control, lambda: self._create_registry(ui_control))
+        from layout.utils import find_all_controls
+        current_control = self.cli.focussed_control
+        visible_controls = self.cli.rendered_user_controls
+        visible_controls = list(find_all_controls(self.cli.layout))#self.cli.rendered_user_controls
+        key = current_control, frozenset(visible_controls)
+
+        return self._cache.get(
+            key, lambda: self._create_registry(current_control, visible_controls))
 
     def get_bindings_for_keys(self, keys):
         return self._registry.get_bindings_for_keys(keys)

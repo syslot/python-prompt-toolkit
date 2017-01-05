@@ -318,7 +318,6 @@ class Prompt(object):
             accept_action=AcceptAction.RETURN_TEXT)
 
         search_buffer = Buffer(name=SEARCH_BUFFER, loop=self.loop)
-        system_buffer = Buffer(name=SYSTEM_BUFFER, loop=self.loop)
 
         # Create processors list.
         input_processor = MergedProcessor([
@@ -433,7 +432,7 @@ class Prompt(object):
                 ]
             ),
             ValidationToolbar(),
-            SystemToolbar(system_buffer),
+            SystemToolbar(self.loop),
 
             # In multiline mode, we use two toolbars for 'arg' and 'search'.
             ConditionalContainer(ArgToolbar(), dyncond('multiline')),
