@@ -446,13 +446,14 @@ class Prompt(object):
             enable_auto_suggest_bindings=True,
             enable_system_bindings=dyncond('enable_system_bindings'),
             enable_open_in_editor=dyncond('enable_open_in_editor'))
+        prompt_bindings = Registry()
 
         @Condition
         def do_accept(cli):
             return (not _true(self.multiline) and
                     self.cli.focussed_control == self._default_buffer_control)
 
-        @default_bindings.add_binding(Keys.ControlM, filter=do_accept)
+        @prompt_bindings.add_binding(Keys.ControlM, filter=do_accept)
         def _(event):
             " Accept input when enter has been pressed. "
             buff = self._default_buffer
@@ -466,7 +467,9 @@ class Prompt(object):
             clipboard=DynamicClipboard(lambda: self.clipboard),
             key_bindings_registry=MergedRegistry([
                 ConditionalRegistry(
-                    default_bindings,
+                    MergedRegistry([
+                        default_bindings,
+                        prompt_bindings]),
                     dyncond('include_default_key_bindings')),
                 DynamicRegistry(lambda: self.extra_key_bindings),
             ]),

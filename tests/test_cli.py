@@ -4,23 +4,27 @@ These are almost end-to-end tests. They create a CommandLineInterface
 instance, feed it with some input and check the result.
 """
 from __future__ import unicode_literals
+
+from functools import partial
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.clipboard import InMemoryClipboard, ClipboardData
 from prompt_toolkit.enums import DEFAULT_BUFFER, EditingMode
 from prompt_toolkit.eventloop.posix import PosixEventLoop
+from prompt_toolkit.filters import ViInsertMode
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.input import PipeInput
 from prompt_toolkit.input.vt100 import ANSI_SEQUENCES
 from prompt_toolkit.interface import CommandLineInterface
+from prompt_toolkit.key_binding.bindings.named_commands import prefix_meta
 from prompt_toolkit.key_binding.manager import KeyBindingManager
+from prompt_toolkit.key_binding.registry import Registry
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.layout.controls import BufferControl
 from prompt_toolkit.output import DummyOutput
-from functools import partial
+from prompt_toolkit.shortcuts import Prompt
 import pytest
 
-from prompt_toolkit.shortcuts import Prompt
 
 def _history():
     h = InMemoryHistory()
@@ -32,7 +36,7 @@ def _history():
 
 def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
                          history=None, multiline=False, check_line_ending=True,
-                         pre_run_callback=None):
+                         extra_key_bindings=None):
     """
     Create a CommandLineInterface, feed it with the given user input and return
     the CLI object.
@@ -48,10 +52,8 @@ def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
         inp.send_text(text)
 
         p = Prompt(input=inp, output=DummyOutput(), editing_mode=editing_mode,
-                   history=history, multiline=multiline, clipboard=clipboard)
-
-        if pre_run_callback:
-            pre_run_callback(p.cli)
+                   history=history, multiline=multiline, clipboard=clipboard,
+                   extra_key_bindings=extra_key_bindings)
 
         result = p.prompt()
         return p._default_buffer.document, p.cli
@@ -438,13 +440,11 @@ def test_emacs_record_macro():
 
 def test_prefix_meta():
     # Test the prefix-meta command.
-    def setup_keybindings(cli):
-        from prompt_toolkit.key_binding.bindings.named_commands import prefix_meta
-        from prompt_toolkit.filters import ViInsertMode
-        cli.application.key_bindings_registry.add_binding('j', 'j', filter=ViInsertMode())(prefix_meta)
+    r = Registry()
+    r.add_binding('j', 'j', filter=ViInsertMode())(prefix_meta)
 
     result, cli = _feed_cli_with_input(
-        'hellojjIX\r', pre_run_callback=setup_keybindings, editing_mode=EditingMode.VI)
+        'hellojjIX\r', extra_key_bindings=r, editing_mode=EditingMode.VI)
     assert result.text == 'Xhello'
 
 

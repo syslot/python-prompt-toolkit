@@ -233,7 +233,7 @@ class Registry(BaseRegistry):
         return self._get_bindings_starting_with_keys_cache.get(keys, get)
 
 
-class _AddRemoveMixin(BaseRegistry):
+class _ProxyMixin(BaseRegistry):
     """
     Common part for ConditionalRegistry and MergedRegistry.
     """
@@ -242,22 +242,8 @@ class _AddRemoveMixin(BaseRegistry):
         self._registry2 = Registry()
         self._last_version = None
 
-        # The 'extra' registry. Mostly for backwards compatibility.
-        self._extra_registry = Registry()
-
     def _update_cache(self):
         raise NotImplementedError
-
-    # For backwards, compatibility, we allow adding bindings to both
-    # ConditionalRegistry and MergedRegistry. This is however not the
-    # recommended way. Better is to create a new registry and merge them
-    # together using MergedRegistry.
-
-    def add_binding(self, *k, **kw):
-        return self._extra_registry.add_binding(*k, **kw)
-
-    def remove_binding(self, *k, **kw):
-        return self._extra_registry.remove_binding(*k, **kw)
 
     # Proxy methods to self._registry2.
 
@@ -280,7 +266,7 @@ class _AddRemoveMixin(BaseRegistry):
         return self._registry2.get_bindings_starting_with_keys(*a, **kw)
 
 
-class ConditionalRegistry(_AddRemoveMixin):
+class ConditionalRegistry(_ProxyMixin):
     """
     Wraps around a `Registry`. Disable/enable all the key bindings according to
     the given (additional) filter.::
@@ -297,38 +283,35 @@ class ConditionalRegistry(_AddRemoveMixin):
     :param registries: List of `Registry` objects.
     :param filter: `CLIFilter` object.
     """
-    def __init__(self, registry=None, filter=True):
-        registry = registry or Registry()
+    def __init__(self, registry, filter=True):
         assert isinstance(registry, BaseRegistry)
-
-        _AddRemoveMixin.__init__(self)
+        _ProxyMixin.__init__(self)
 
         self.registry = registry
         self.filter = to_cli_filter(filter)
 
     def _update_cache(self):
         " If the original registry was changed. Update our copy version. "
-        expected_version = (self.registry._version, self._extra_registry._version)
+        expected_version = self.registry._version
 
         if self._last_version != expected_version:
             registry2 = Registry()
 
             # Copy all bindings from `self.registry`, adding our condition.
-            for reg in (self.registry, self._extra_registry):
-                for b in reg.key_bindings:
-                    registry2.key_bindings.append(
-                        _Binding(
-                            keys=b.keys,
-                            handler=b.handler,
-                            filter=self.filter & b.filter,
-                            eager=b.eager,
-                            save_before=b.save_before))
+            for b in self.registry.key_bindings:
+                registry2.key_bindings.append(
+                    _Binding(
+                        keys=b.keys,
+                        handler=b.handler,
+                        filter=self.filter & b.filter,
+                        eager=b.eager,
+                        save_before=b.save_before))
 
             self._registry2 = registry2
             self._last_version = expected_version
 
 
-class MergedRegistry(_AddRemoveMixin):
+class MergedRegistry(_ProxyMixin):
     """
     Merge multiple registries of key bindings into one.
 
@@ -339,9 +322,7 @@ class MergedRegistry(_AddRemoveMixin):
     """
     def __init__(self, registries):
         assert all(isinstance(r, BaseRegistry) for r in registries)
-
-        _AddRemoveMixin.__init__(self)
-
+        _ProxyMixin.__init__(self)
         self.registries = registries
 
     def _update_cache(self):
@@ -349,18 +330,13 @@ class MergedRegistry(_AddRemoveMixin):
         If one of the original registries was changed. Update our merged
         version.
         """
-        expected_version = (
-            tuple(r._version for r in self.registries) +
-            (self._extra_registry._version, ))
+        expected_version = tuple(r._version for r in self.registries)
 
         if self._last_version != expected_version:
             registry2 = Registry()
 
             for reg in self.registries:
                 registry2.key_bindings.extend(reg.key_bindings)
-
-            # Copy all bindings from `self._extra_registry`.
-            registry2.key_bindings.extend(self._extra_registry.key_bindings)
 
             self._registry2 = registry2
             self._last_version = expected_version

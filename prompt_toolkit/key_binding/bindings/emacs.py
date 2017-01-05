@@ -23,7 +23,7 @@ def load_emacs_bindings():
     """
     # Overview of Readline emacs commands:
     # http://www.catonmat.net/download/readline-emacs-editing-mode-cheat-sheet.pdf
-    registry = ConditionalRegistry(Registry(), EmacsMode())
+    registry = Registry()
     handle = registry.add_binding
 
     insert_mode = EmacsInsertMode()
@@ -295,7 +295,7 @@ def load_emacs_bindings():
 
         unindent(buffer, from_, to + 1, count=event.arg)
 
-    return registry
+    return ConditionalRegistry(registry, EmacsMode())
 
 
 def load_emacs_open_in_editor_bindings():
@@ -312,7 +312,7 @@ def load_emacs_open_in_editor_bindings():
 
 
 def load_emacs_search_bindings():
-    registry = ConditionalRegistry(Registry(), EmacsMode())
+    registry = Registry()
     handle = registry.add_binding
 
     is_searching = IsSearching()
@@ -398,7 +398,7 @@ def load_emacs_search_bindings():
     def _(event):
         incremental_search(event.cli, SearchDirection.FORWARD, count=event.arg)
 
-    return registry
+    return ConditionalRegistry(registry, EmacsMode())
 
 
 def load_extra_emacs_page_navigation_bindings():
@@ -406,7 +406,7 @@ def load_extra_emacs_page_navigation_bindings():
     Key bindings, for scrolling up and down through pages.
     This are separate bindings, because GNU readline doesn't have them.
     """
-    registry = ConditionalRegistry(Registry(), EmacsMode())
+    registry = Registry()
     handle = registry.add_binding
 
     handle(Keys.ControlV)(scroll_page_down)
@@ -414,4 +414,4 @@ def load_extra_emacs_page_navigation_bindings():
     handle(Keys.Escape, 'v')(scroll_page_up)
     handle(Keys.PageUp)(scroll_page_up)
 
-    return registry
+    return ConditionalRegistry(registry, EmacsMode())

@@ -311,7 +311,7 @@ def load_vi_bindings():
     #       handled correctly. There is no need to add "~IsReadOnly" to all key
     #       bindings that do text manipulation.
 
-    registry = ConditionalRegistry(Registry(), ViMode())
+    registry = Registry()
     handle = registry.add_binding
 
     # (Note: Always take the navigation bindings in read-only mode, even when
@@ -1697,7 +1697,7 @@ def load_vi_bindings():
             event.cli.vi_state.waiting_for_digraph = False
             event.cli.vi_state.digraph_symbol1 = None
 
-    return registry
+    return ConditionalRegistry(registry, ViMode())
 
 
 def load_vi_open_in_editor_bindings():
@@ -1716,7 +1716,7 @@ def load_vi_search_bindings():
     is_searching = IsSearching()
     control_is_searchable = ControlIsSearchable()
 
-    registry = ConditionalRegistry(Registry(), ViMode())
+    registry = Registry()
     handle = registry.add_binding
 
     navigation_mode = ViNavigationMode()
@@ -1830,7 +1830,7 @@ def load_vi_search_bindings():
 
         event.cli.focus.focus_previous()
 
-    return registry
+    return ConditionalRegistry(registry, ViMode())
 
 
 def load_extra_vi_page_navigation_bindings():
@@ -1838,7 +1838,7 @@ def load_extra_vi_page_navigation_bindings():
     Key bindings, for scrolling up and down through pages.
     This are separate bindings, because GNU readline doesn't have them.
     """
-    registry = ConditionalRegistry(Registry(), ViMode())
+    registry = Registry()
     handle = registry.add_binding
 
     handle(Keys.ControlF)(scroll_forward)
@@ -1850,14 +1850,4 @@ def load_extra_vi_page_navigation_bindings():
     handle(Keys.PageDown)(scroll_page_down)
     handle(Keys.PageUp)(scroll_page_up)
 
-    return registry
-
-
-class ViStateFilter(Filter):
-    " Deprecated! "
-    def __init__(self, get_vi_state, mode):
-        self.get_vi_state = get_vi_state
-        self.mode = mode
-
-    def __call__(self, cli):
-        return self.get_vi_state(cli).input_mode == self.mode
+    return ConditionalRegistry(registry, ViMode())
