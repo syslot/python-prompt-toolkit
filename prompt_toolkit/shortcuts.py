@@ -62,6 +62,7 @@ import time
 import sys
 
 __all__ = (
+    'Prompt',
     'prompt',
     'prompt_async',
     'confirm',
@@ -696,24 +697,34 @@ class Prompt(object):
         self.loop.close()
 
 
-# The default prompt function.
-_prompt = None
 def prompt(*a, **kw):
-    global _prompt
-    if _prompt is None:
-        _prompt = Prompt()
-    return _prompt.prompt(*a, **kw)
+    prompt = Prompt()
+    try:
+        return prompt.prompt(*a, **kw)
+    finally:
+        prompt.close()
 
 prompt.__doc__ = Prompt.prompt.__doc__
 
 
-def prompt_async(*a, **kw):
-    """
-    Similar to :func:`.prompt`, but return an asyncio coroutine instead.
-    """
-    loop = create_asyncio_event_loop()
-    prompt = Prompt(loop=loop)
-    return prompt.prompt_async(*a, **kw)
+try:
+    exec_(textwrap.dedent('''
+    async def prompt_async(*a, **kw):
+        """
+        Similar to :func:`.prompt`, but return an asyncio coroutine instead.
+        """
+        loop = create_asyncio_event_loop()
+        prompt = Prompt(loop=loop)
+        try:
+            return await prompt.prompt_async(*a, **kw)
+        finally:
+            prompt.close()
+    prompt_async.__doc__ = Prompt.prompt.prompt_async
+    '''), globals(), locals())
+except SyntaxError:
+    def prompt_async(*a, **kw):
+        raise NotImplementedError(
+            'prompt_async is only available for Python >3.5.')
 
 
 def create_confirm_prompt(message):
