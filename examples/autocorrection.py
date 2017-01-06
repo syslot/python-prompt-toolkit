@@ -26,7 +26,7 @@ def main():
         When space is pressed, we check the word before the cursor, and
         autocorrect that.
         """
-        b = event.cli.current_buffer
+        b = event.app.current_buffer
         w = b.document.get_word_before_cursor()
 
         if w is not None:

@@ -40,7 +40,7 @@ class AutoSuggest(with_metaclass(ABCMeta, object)):
     Base class for auto suggestion implementations.
     """
     @abstractmethod
-    def get_suggestion(self, cli, buffer, document):
+    def get_suggestion(self, app, buffer, document):
         """
         Return `None` or a :class:`.Suggestion` instance.
 
@@ -59,7 +59,7 @@ class DummyAutoSuggest(AutoSuggest):
     """
     AutoSuggest class that doesn't return any suggestion.
     """
-    def get_suggestion(self, cli, buffer, document):
+    def get_suggestion(self, app, buffer, document):
         return  # No suggestion
 
 
@@ -67,7 +67,7 @@ class AutoSuggestFromHistory(AutoSuggest):
     """
     Give suggestions based on the lines in the history.
     """
-    def get_suggestion(self, cli, buffer, document):
+    def get_suggestion(self, app, buffer, document):
         history = buffer.history
 
         # Consider only the last line for the suggestion.
@@ -92,9 +92,9 @@ class ConditionalAutoSuggest(AutoSuggest):
         self.auto_suggest = auto_suggest
         self.filter = to_cli_filter(filter)
 
-    def get_suggestion(self, cli, buffer, document):
-        if self.filter(cli):
-            return self.auto_suggest.get_suggestion(cli, buffer, document)
+    def get_suggestion(self, app, buffer, document):
+        if self.filter(app):
+            return self.auto_suggest.get_suggestion(app, buffer, document)
 
 
 class DynamicAutoSuggest(AutoSuggest):

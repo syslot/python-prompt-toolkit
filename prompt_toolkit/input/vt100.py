@@ -480,7 +480,7 @@ class raw_mode(object):
 class cooked_mode(raw_mode):
     """
     The opposide of ``raw_mode``, used when we need cooked mode inside a
-    `raw_mode` block.  Used in `CommandLineInterface.run_in_terminal`.::
+    `raw_mode` block.  Used in `Application.run_in_terminal`.::
 
         with cooked_mode(stdin):
             ''' the pseudo-terminal stdin is now used in cooked mode. '''

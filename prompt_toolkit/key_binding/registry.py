@@ -272,7 +272,7 @@ class ConditionalRegistry(_ProxyMixin):
     the given (additional) filter.::
 
         @Condition
-        def setting_is_true(cli):
+        def setting_is_true(app):
             return True  # or False
 
         registy = ConditionalRegistry(registry, setting_is_true)

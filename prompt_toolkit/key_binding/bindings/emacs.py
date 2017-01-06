@@ -116,16 +116,16 @@ def load_emacs_bindings():
         if event._arg is None:
             event.append_to_arg_count('-')
 
-    @handle('-', filter=Condition(lambda cli: cli.input_processor.arg == '-'))
+    @handle('-', filter=Condition(lambda app: app.input_processor.arg == '-'))
     def _(event):
         """
         When '-' is typed again, after exactly '-' has been given as an
         argument, ignore this.
         """
-        event.cli.input_processor.arg = '-'
+        event.app.input_processor.arg = '-'
 
     is_returnable = Condition(
-        lambda cli: cli.current_buffer.accept_action.is_returnable)
+        lambda app: app.current_buffer.accept_action.is_returnable)
 
     # Meta + Newline: always accept input.
     handle(Keys.Escape, Keys.Enter, filter=insert_mode & is_returnable)(
@@ -229,7 +229,7 @@ def load_emacs_bindings():
         Cut selected text.
         """
         data = event.current_buffer.cut_selection()
-        event.cli.clipboard.set_data(data)
+        event.app.clipboard.set_data(data)
 
     @handle(Keys.Escape, 'w', filter=has_selection)
     def _(event):
@@ -237,7 +237,7 @@ def load_emacs_bindings():
         Copy selected text.
         """
         data = event.current_buffer.copy_selection()
-        event.cli.clipboard.set_data(data)
+        event.app.clipboard.set_data(data)
 
     @handle(Keys.Escape, Keys.Left)
     def _(event):
@@ -326,8 +326,8 @@ def load_emacs_search_bindings():
         """
         Abort an incremental search and restore the original line.
         """
-        event.cli.current_buffer.reset()
-        event.cli.focus.focus_previous()
+        event.app.current_buffer.reset()
+        event.app.focus.focus_previous()
 
     @handle(Keys.Enter, filter=is_searching)
     def _(event):
@@ -335,8 +335,8 @@ def load_emacs_search_bindings():
         When enter pressed in isearch, quit isearch mode. (Multiline
         isearch would be too complicated.)
         """
-        search_control = event.cli.focus.focussed_control
-        prev_control = event.cli.focus.previous_focussed_control
+        search_control = event.app.focus.focussed_control
+        prev_control = event.app.focus.previous_focussed_control
         search_state = prev_control.search_state
 
         # Update search state.
@@ -351,30 +351,30 @@ def load_emacs_search_bindings():
         search_control.buffer.reset()
 
         # Focus previous document again.
-        event.cli.focus.focus_previous()
+        event.app.focus.focus_previous()
 
     @handle(Keys.ControlR, filter=control_is_searchable)
     def _(event):
-        control = event.cli.focus.focussed_control
+        control = event.app.focus.focussed_control
         search_state = control.search_state
 
         search_state.direction = SearchDirection.BACKWARD
-        event.cli.focussed_control = control.search_buffer_control
+        event.app.focussed_control = control.search_buffer_control
 
     @handle(Keys.ControlS, filter=control_is_searchable)
     def _(event):
-        control = event.cli.focus.focussed_control
+        control = event.app.focus.focussed_control
         search_state = control.search_state
 
         search_state.direction = SearchDirection.FORWARD
-        event.cli.focussed_control = control.search_buffer_control
+        event.app.focussed_control = control.search_buffer_control
 
-    def incremental_search(cli, direction, count=1):
+    def incremental_search(app, direction, count=1):
         " Apply search, but keep search buffer focussed. "
-        assert is_searching(cli)
+        assert is_searching(app)
 
-        search_control = cli.focus.focussed_control
-        prev_control = cli.focus.previous_focussed_control
+        search_control = app.focus.focussed_control
+        prev_control = app.focus.previous_focussed_control
         search_state = prev_control.search_state
 
         # Update search_state.
@@ -391,12 +391,12 @@ def load_emacs_search_bindings():
     @handle(Keys.ControlR, filter=is_searching)
     @handle(Keys.Up, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, SearchDirection.BACKWARD, count=event.arg)
+        incremental_search(event.app, SearchDirection.BACKWARD, count=event.arg)
 
     @handle(Keys.ControlS, filter=is_searching)
     @handle(Keys.Down, filter=is_searching)
     def _(event):
-        incremental_search(event.cli, SearchDirection.FORWARD, count=event.arg)
+        incremental_search(event.app, SearchDirection.FORWARD, count=event.arg)
 
     return ConditionalRegistry(registry, EmacsMode())
 

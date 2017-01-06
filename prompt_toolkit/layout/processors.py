@@ -63,7 +63,7 @@ class Processor(with_metaclass(ABCMeta, object)):
 
 class TransformationInput(object):
     """
-    :param cli: :class:`.CommandLineInterface` instance.
+    :param app: :class:`.Application` instance.
     :param control: :class:`.BufferControl` instance.
     :param lineno: The number of the line to which we apply the processor.
     :param source_to_display: A function that returns the position in the
@@ -72,9 +72,9 @@ class TransformationInput(object):
     :param tokens: List of tokens that we can transform. (Received from the
         previous processor.)
     """
-    def __init__(self, cli, buffer_control, document, lineno,
+    def __init__(self, app, buffer_control, document, lineno,
                  source_to_display, tokens, width, height):
-        self.cli = cli
+        self.app = app
         self.buffer_control = buffer_control
         self.document = document
         self.lineno = lineno
@@ -84,7 +84,7 @@ class TransformationInput(object):
         self.height = height
 
     def unpack(self):
-        return (self.cli, self.buffer_control, self.document, self.lineno,
+        return (self.app, self.buffer_control, self.document, self.lineno,
                 self.source_to_display, self.tokens, self.width, self.height)
 
 
@@ -128,12 +128,12 @@ class HighlightSearchProcessor(Processor):
     def __init__(self, preview_search=False):
         self.preview_search = to_cli_filter(preview_search)
 
-    def _get_search_text(self, cli, buffer_control):
+    def _get_search_text(self, app, buffer_control):
         """
         The text we are searching for.
         """
         # When the search buffer has focus, take that text.
-        if self.preview_search(cli):
+        if self.preview_search(app):
             search_buffer = buffer_control.search_buffer
             if search_buffer is not None and search_buffer.text:
                 return search_buffer.text
@@ -142,13 +142,13 @@ class HighlightSearchProcessor(Processor):
         return buffer_control.search_state.text
 
     def apply_transformation(self, transformation_input):
-        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+        app, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
 
-        search_text = self._get_search_text(cli, buffer_control)
+        search_text = self._get_search_text(app, buffer_control)
         searchmatch_current_token = (':', ) + Token.SearchMatch.Current
         searchmatch_token = (':', ) + Token.SearchMatch
 
-        if search_text and not cli.is_returning:
+        if search_text and not app.is_returning:
             # For each search match, replace the Token.
             line_text = token_list_to_text(tokens)
             tokens = explode_tokens(tokens)
@@ -185,7 +185,7 @@ class HighlightSelectionProcessor(Processor):
     Processor that highlights the selection in the document.
     """
     def apply_transformation(self, transformation_input):
-        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+        app, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
 
         selected_token = (':', ) + Token.SelectedText
 
@@ -275,10 +275,10 @@ class HighlightMatchingBracketProcessor(Processor):
             return []
 
     def apply_transformation(self, transformation_input):
-        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+        app, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
 
         # Get the highlight positions.
-        key = (cli.render_counter, document.text, document.cursor_position)
+        key = (app.render_counter, document.text, document.cursor_position)
         positions = self._positions_cache.get(
             key, lambda: self._get_positions_to_highlight(document))
 
@@ -307,11 +307,11 @@ class DisplayMultipleCursors(Processor):
     _insert_multiple =  ViInsertMultipleMode()
 
     def apply_transformation(self, transformation_input):
-        cli, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
+        app, buffer_control, document, lineno, source_to_display, tokens, _, _ = transformation_input.unpack()
 
         buff = buffer_control.buffer
 
-        if self._insert_multiple(cli):
+        if self._insert_multiple(app):
             positions = buff.multiple_cursor_positions
             tokens = explode_tokens(tokens)
 
@@ -342,7 +342,7 @@ class BeforeInput(Processor):
     Insert tokens before the input.
 
     :param get_tokens: Callable that takes a
-        :class:`~prompt_toolkit.interface.CommandLineInterface` and returns the
+        :class:`~prompt_toolkit.application.Application` and returns the
         list of tokens to be inserted.
     """
     def __init__(self, get_tokens):
@@ -351,7 +351,7 @@ class BeforeInput(Processor):
 
     def apply_transformation(self, ti):
         if ti.lineno == 0:
-            tokens_before = self.get_tokens(ti.cli)
+            tokens_before = self.get_tokens(ti.app)
             tokens = tokens_before + ti.tokens
 
             shift_position = token_list_len(tokens_before)
@@ -371,7 +371,7 @@ class BeforeInput(Processor):
         Create a :class:`.BeforeInput` instance that always inserts the same
         text.
         """
-        def get_static_tokens(cli):
+        def get_static_tokens(app):
             return [(token, text)]
         return cls(get_static_tokens)
 
@@ -383,11 +383,11 @@ class ShowArg(BeforeInput):
     def __init__(self):
         super(ShowArg, self).__init__(self._get_tokens)
 
-    def _get_tokens(self, cli):
-        if cli.input_processor.arg is None:
+    def _get_tokens(self, app):
+        if app.input_processor.arg is None:
             return []
         else:
-            arg = cli.input_processor.arg
+            arg = app.input_processor.arg
 
             return [
                 (Token.Prompt.Arg, '(arg: '),
@@ -404,7 +404,7 @@ class AfterInput(Processor):
     Insert tokens after the input.
 
     :param get_tokens: Callable that takes a
-        :class:`~prompt_toolkit.interface.CommandLineInterface` and returns the
+        :class:`~prompt_toolkit.application.Application` and returns the
         list of tokens to be appended.
     """
     def __init__(self, get_tokens):
@@ -414,7 +414,7 @@ class AfterInput(Processor):
     def apply_transformation(self, ti):
         # Insert tokens after the last line.
         if ti.lineno == ti.document.line_count - 1:
-            return Transformation(tokens=ti.tokens + self.get_tokens(ti.cli))
+            return Transformation(tokens=ti.tokens + self.get_tokens(ti.app))
         else:
             return Transformation(tokens=ti.tokens)
 
@@ -424,7 +424,7 @@ class AfterInput(Processor):
         Create a :class:`.AfterInput` instance that always inserts the same
         text.
         """
-        def get_static_tokens(cli):
+        def get_static_tokens(app):
             return [(token, text)]
         return cls(get_static_tokens)
 
@@ -460,7 +460,7 @@ class ShowLeadingWhiteSpaceProcessor(Processor):
     """
     Make leading whitespace visible.
 
-    :param get_char: Callable that takes a :class:`CommandLineInterface`
+    :param get_char: Callable that takes a :class:`Application`
         instance and returns one character.
     :param token: Token to be used.
     """
@@ -468,8 +468,8 @@ class ShowLeadingWhiteSpaceProcessor(Processor):
         assert get_char is None or callable(get_char)
 
         if get_char is None:
-            def get_char(cli):
-                if '\xb7'.encode(cli.output.encoding(), 'replace') == b'?':
+            def get_char(app):
+                if '\xb7'.encode(app.output.encoding(), 'replace') == b'?':
                     return '.'
                 else:
                     return '\xb7'
@@ -478,12 +478,12 @@ class ShowLeadingWhiteSpaceProcessor(Processor):
         self.get_char = get_char
 
     def apply_transformation(self, ti):
-        cli = ti.cli
+        app = ti.app
         tokens = ti.tokens
 
         # Walk through all te tokens.
         if tokens and token_list_to_text(tokens).startswith(' '):
-            t = (self.token, self.get_char(cli))
+            t = (self.token, self.get_char(app))
             tokens = explode_tokens(tokens)
 
             for i in range(len(tokens)):
@@ -499,7 +499,7 @@ class ShowTrailingWhiteSpaceProcessor(Processor):
     """
     Make trailing whitespace visible.
 
-    :param get_char: Callable that takes a :class:`CommandLineInterface`
+    :param get_char: Callable that takes a :class:`Application`
         instance and returns one character.
     :param token: Token to be used.
     """
@@ -507,8 +507,8 @@ class ShowTrailingWhiteSpaceProcessor(Processor):
         assert get_char is None or callable(get_char)
 
         if get_char is None:
-            def get_char(cli):
-                if '\xb7'.encode(cli.output.encoding(), 'replace') == b'?':
+            def get_char(app):
+                if '\xb7'.encode(app.output.encoding(), 'replace') == b'?':
                     return '.'
                 else:
                     return '\xb7'
@@ -518,11 +518,11 @@ class ShowTrailingWhiteSpaceProcessor(Processor):
 
 
     def apply_transformation(self, ti):
-        cli = ti.cli
+        app = ti.app
         tokens = ti.tokens
 
         if tokens and tokens[-1][1].endswith(' '):
-            t = (self.token, self.get_char(cli))
+            t = (self.token, self.get_char(app))
             tokens = explode_tokens(tokens)
 
             # Walk backwards through all te tokens and replace whitespace.
@@ -542,7 +542,7 @@ class TabsProcessor(Processor):
     by replacing them with dots.)
 
     :param tabstop: (Integer) Horizontal space taken by a tab.
-    :param get_char1: Callable that takes a `CommandLineInterface` and return a
+    :param get_char1: Callable that takes a `Application` and return a
         character (text of length one). This one is used for the first space
         taken by the tab.
     :param get_char2: Like `get_char1`, but for the rest of the space.
@@ -552,20 +552,20 @@ class TabsProcessor(Processor):
         assert get_char1 is None or callable(get_char1)
         assert get_char2 is None or callable(get_char2)
 
-        self.get_char1 = get_char1 or get_char2 or (lambda cli: '|')
-        self.get_char2 = get_char2 or get_char1 or (lambda cli: '\u2508')
+        self.get_char1 = get_char1 or get_char2 or (lambda app: '|')
+        self.get_char2 = get_char2 or get_char1 or (lambda app: '\u2508')
         self.tabstop = tabstop
         self.token = token
 
     def apply_transformation(self, ti):
-        cli = ti.cli
+        app = ti.app
 
         tabstop = int(self.tabstop)
         token = self.token
 
         # Create separator for tabs.
-        separator1 = self.get_char1(cli)
-        separator2 = self.get_char2(cli)
+        separator1 = self.get_char1(app)
+        separator2 = self.get_char2(app)
 
         # Transform tokens.
         tokens = explode_tokens(ti.tokens)
@@ -630,9 +630,9 @@ class ReverseSearchProcessor(Processor):
         AfterInput,
     ]
 
-    def _get_main_buffer(self, cli, buffer_control):
+    def _get_main_buffer(self, app, buffer_control):
         from prompt_toolkit.layout.controls import BufferControl
-        prev_control = cli.focus.previous_focussed_control
+        prev_control = app.focus.previous_focussed_control
         if isinstance(prev_control, BufferControl) and \
                 prev_control.search_buffer_control == buffer_control:
             return prev_control, prev_control.search_state
@@ -684,11 +684,11 @@ class ReverseSearchProcessor(Processor):
                  preview_search=True,
                  search_buffer_control=ti.buffer_control)
 
-        return buffer_control.create_content(ti.cli, ti.width, ti.height)
+        return buffer_control.create_content(ti.app, ti.width, ti.height)
 
 
     def apply_transformation(self, ti):
-        main_control, search_state = self._get_main_buffer(ti.cli, ti.buffer_control)
+        main_control, search_state = self._get_main_buffer(ti.app, ti.buffer_control)
 
         if ti.lineno == 0 and main_control:
             content = self._content(main_control, ti)
@@ -732,7 +732,7 @@ class ConditionalProcessor(Processor):
 
         # Create a function that returns whether or not the processor should
         # currently be applied.
-        def highlight_enabled(cli):
+        def highlight_enabled(app):
             return true_or_false
 
         # Wrapt it in a `ConditionalProcessor` for usage in a `BufferControl`.
@@ -751,7 +751,7 @@ class ConditionalProcessor(Processor):
 
     def apply_transformation(self, transformation_input):
         # Run processor when enabled.
-        if self.filter(transformation_input.cli):
+        if self.filter(transformation_input.app):
             return self.processor.apply_transformation(transformation_input)
         else:
             return Transformation(transformation_input.tokens)
@@ -799,7 +799,7 @@ class MergedProcessor(Processor):
 
         for p in self.processors:
             transformation = p.apply_transformation(TransformationInput(
-                ti.cli, ti.buffer_control, ti.document, ti.lineno,
+                ti.app, ti.buffer_control, ti.document, ti.lineno,
                 source_to_display, tokens, ti.width, ti.height))
             tokens = transformation.tokens
             display_to_source_functions.append(transformation.display_to_source)

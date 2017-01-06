@@ -5,7 +5,7 @@ If you are using this library for retrieving some input from the user (as a
 pure Python replacement for GNU readline), probably for 90% of the use cases,
 the :func:`.prompt` function is all you need. It's the easiest shortcut which
 does a lot of the underlying work like creating a
-:class:`~prompt_toolkit.interface.CommandLineInterface` instance for you.
+:class:`~prompt_toolkit.application.Application` instance for you.
 
 When is this not sufficient:
     - When you want to have more complicated layouts (maybe with sidebars or
@@ -16,8 +16,8 @@ When is this not sufficient:
     - Something else that requires more customization than what is possible
       with the parameters of `prompt`.
 
-In that case, study the code in this file and build your own
-`CommandLineInterface` instance. It's not too complicated.
+In that case, study the code in this file and build your own `Application`
+instance. It's not too complicated.
 """
 from __future__ import unicode_literals
 
@@ -32,7 +32,7 @@ from .eventloop.defaults import create_event_loop, create_asyncio_event_loop
 from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, Condition
 from .history import InMemoryHistory, DynamicHistory
 from .input import StdinInput
-from .interface import CommandLineInterface, Application, AbortAction
+from .application import Application, AbortAction
 from .key_binding.defaults import load_key_bindings
 from .key_binding.registry import Registry, DynamicRegistry, MergedRegistry, ConditionalRegistry
 from .keys import Keys
@@ -77,25 +77,25 @@ def _split_multiline_prompt(get_prompt_tokens):
     returns the tokens to be shown on the lines above the input; and another
     one with the tokens to be shown at the first line of the input.
     """
-    def has_before_tokens(cli):
-        for token, char in get_prompt_tokens(cli):
+    def has_before_tokens(app):
+        for token, char in get_prompt_tokens(app):
             if '\n' in char:
                 return True
         return False
 
-    def before(cli):
+    def before(app):
         result = []
         found_nl = False
-        for token, char in reversed(explode_tokens(get_prompt_tokens(cli))):
+        for token, char in reversed(explode_tokens(get_prompt_tokens(app))):
             if found_nl:
                 result.insert(0, (token, char))
             elif char == '\n':
                 found_nl = True
         return result
 
-    def first_input_line(cli):
+    def first_input_line(app):
         result = []
-        for token, char in reversed(explode_tokens(get_prompt_tokens(cli))):
+        for token, char in reversed(explode_tokens(get_prompt_tokens(app))):
             if char == '\n':
                 break
             else:
@@ -162,10 +162,10 @@ class Prompt(object):
     :param clipboard: :class:`~prompt_toolkit.clipboard.base.Clipboard` instance.
         (e.g. :class:`~prompt_toolkit.clipboard.in_memory.InMemoryClipboard`)
     :param get_bottom_toolbar_tokens: Optional callable which takes a
-        :class:`~prompt_toolkit.interface.CommandLineInterface` and returns a
+        :class:`~prompt_toolkit.application.Application` and returns a
         list of tokens for the bottom toolbar.
     :param get_continuation_tokens: An optional callable that takes a
-        CommandLineInterface and width as input and returns a list of (Token,
+        Application and width as input and returns a list of (Token,
         text) tuples to be used for the continuation.
     :param get_prompt_tokens: An optional callable that returns the tokens to be
         shown in the menu. (To be used instead of a `message`.)
@@ -274,7 +274,7 @@ class Prompt(object):
                 value = locals()[name]
                 setattr(self, name, value)
 
-        self.application, self._default_buffer, self._default_buffer_control, self.cli = \
+        self.app, self._default_buffer, self._default_buffer_control = \
             self._create_application(editing_mode, on_abort, on_exit, erase_when_done)
 
     def _create_application(self, editing_mode, on_abort, on_exit, erase_when_done):
@@ -347,11 +347,11 @@ class Prompt(object):
 
         # Create bottom toolbars.
         bottom_toolbar = ConditionalContainer(
-            Window(TokenListControl(lambda cli: self.get_bottom_toolbar_tokens(cli),
+            Window(TokenListControl(lambda app: self.get_bottom_toolbar_tokens(app),
                                     default_char=Char(' ', Token.Toolbar)),
                                     height=LayoutDimension.exact(1)),
             filter=~IsDone() & RendererHeightIsKnown() &
-                    Condition(lambda cli: self.get_bottom_toolbar_tokens is not None))
+                    Condition(lambda app: self.get_bottom_toolbar_tokens is not None))
 
         search_toolbar = SearchToolbar(search_buffer)
         search_buffer_control = BufferControl(
@@ -399,13 +399,13 @@ class Prompt(object):
                             ],
                             wrap_lines=dyncond('wrap_lines'),
                         ),
-                        Condition(lambda cli:
-                            cli.focussed_control != search_buffer_control),
+                        Condition(lambda app:
+                            app.focussed_control != search_buffer_control),
                     ),
                     ConditionalContainer(
                         Window(search_buffer_control),
-                        Condition(lambda cli:
-                            cli.focussed_control == search_buffer_control),
+                        Condition(lambda app:
+                            app.focussed_control == search_buffer_control),
                     ),
                 ]),
                 [
@@ -449,15 +449,15 @@ class Prompt(object):
         prompt_bindings = Registry()
 
         @Condition
-        def do_accept(cli):
+        def do_accept(app):
             return (not _true(self.multiline) and
-                    self.cli.focussed_control == self._default_buffer_control)
+                    self.app.focussed_control == self._default_buffer_control)
 
         @prompt_bindings.add_binding(Keys.ControlM, filter=do_accept)
         def _(event):
             " Accept input when enter has been pressed. "
             buff = self._default_buffer
-            buff.accept_action.validate_and_handle(event.cli, buff)
+            buff.accept_action.validate_and_handle(event.app, buff)
 
         # Create application
         application = Application(
@@ -479,12 +479,10 @@ class Prompt(object):
             erase_when_done=erase_when_done,
             reverse_vi_search_direction=True,
             on_abort=on_abort,
-            on_exit=on_exit)
+            on_exit=on_exit,
 
-        # Create CommandLineInterface.
-        cli = CommandLineInterface(
-            application=application,
-            eventloop=self.loop,
+            # I/O.
+            loop=self.loop,
             input=self.input,
             output=self.output)
 
@@ -492,23 +490,23 @@ class Prompt(object):
         # (if we are searching). - This could be useful if people make the
         # 'multiline' property dynamic.
         '''
-        def on_render(cli):
+        def on_render(app):
             multiline = _true(self.multiline)
-            focussed_control = cli.focussed_control
+            focussed_control = app.focussed_control
 
             if multiline:
                 if focussed_control == search_buffer_control:
-                    cli.focussed_control = search_toolbar.control
-                    cli.invalidate()
+                    app.focussed_control = search_toolbar.control
+                    app.invalidate()
             else:
                 if focussed_control == search_toolbar.control:
-                    cli.focussed_control = search_buffer_control
-                    cli.invalidate()
+                    app.focussed_control = search_buffer_control
+                    app.invalidate()
 
-        cli.on_render += on_render
+        app.on_render += on_render
         '''
 
-        return application, default_buffer, default_buffer_control, cli
+        return application, default_buffer, default_buffer_control
 
     def _auto_refresh_context(self):
         " Return a context manager for the auto-refresh loop. "
@@ -520,7 +518,7 @@ class Prompt(object):
                 def run():
                     while not self.done:
                         time.sleep(self.refresh_interval)
-                        self.cli.invalidate()
+                        self.app.invalidate()
 
                 if self.refresh_interval:
                     t = threading.Thread(target=run)
@@ -534,7 +532,7 @@ class Prompt(object):
 
     def _patch_context(self):
         if self.patch_stdout:
-            return self.cli.patch_stdout_context(raw=True)
+            return self.app.patch_stdout_context(raw=True)
         else:
             return DummyContext()
 
@@ -568,11 +566,12 @@ class Prompt(object):
         if vi_mode:
             self.editing_mode = EditingMode.VI
 
+
         with self._auto_refresh_context():
             with self._patch_context():
                 try:
-                    self._default_buffer.document = Document(self.default)
-                    return self.cli.run()
+                    self._default_buffer.reset(Document(self.default))
+                    return self.app.run()
                 finally:
                     # Restore original settings.
                     for name in self._fields:
@@ -613,8 +612,8 @@ class Prompt(object):
         with self._auto_refresh_context():
             with self._patch_context():
                 try:
-                    self._default_buffer.document = Document(self.default)
-                    return await self.cli.run_async()
+                    self._default_buffer.reset(Document(self.default))
+                    return await self.app.run_async()
                 finally:
                     # Restore original settings.
                     for name in self._fields:
@@ -630,29 +629,29 @@ class Prompt(object):
 
     @property
     def on_abort(self):
-        return self.application.on_abort
+        return self.app.on_abort
 
     @on_abort.setter
     def on_abort(self, value):
-        self.application.on_abort = value
+        self.app.on_abort = value
 
     @property
     def on_exit(self):
-        return self.application.on_exit
+        return self.app.on_exit
 
     @on_exit.setter
     def on_exit(self, value):
-        self.application.on_exit = value
+        self.app.on_exit = value
 
     @property
     def editing_mode(self):
-        return self.cli.editing_mode
+        return self.app.editing_mode
 
     @editing_mode.setter
     def editing_mode(self, value):
-        self.cli.editing_mode = value
+        self.app.editing_mode = value
 
-    def _get_default_buffer_control_height(self, cli):
+    def _get_default_buffer_control_height(self, app):
         # If there is an autocompletion menu to be shown, make sure that our
         # layout has at least a minimal height in order to display it.
         if self.completer is not None:
@@ -660,7 +659,7 @@ class Prompt(object):
         else:
             space = 0
 
-        if space and not cli.is_done:
+        if space and not app.is_done:
             buff = self._default_buffer
 
             # Reserve the space, either when there are completions, or when
@@ -671,20 +670,20 @@ class Prompt(object):
 
         return LayoutDimension()
 
-    def _get_prompt_tokens(self, cli):
+    def _get_prompt_tokens(self, app):
         if self.get_prompt_tokens is None:
             return [(Token.Prompt, self.message or '')]
         else:
-            return self.get_prompt_tokens(cli)
+            return self.get_prompt_tokens(app)
 
-    def _get_rprompt_tokens(self, cli):
+    def _get_rprompt_tokens(self, app):
         if self.get_rprompt_tokens:
-            return self.get_rprompt_tokens(cli)
+            return self.get_rprompt_tokens(app)
         return []
 
-    def _get_continuation_tokens(self, cli, width):
+    def _get_continuation_tokens(self, app, width):
         if self.get_continuation_tokens:
-            return self.get_continuation_tokens(cli, width)
+            return self.get_continuation_tokens(app, width)
         return []
 
     def _get_title(self):
@@ -728,14 +727,14 @@ def create_confirm_prompt(message):
     @registry.add_binding('Y')
     def _(event):
         prompt._default_buffer.text = 'y'
-        event.cli.set_return_value(True)
+        event.app.set_return_value(True)
 
     @registry.add_binding('n')
     @registry.add_binding('N')
     @registry.add_binding(Keys.ControlC)
     def _(event):
         prompt._default_buffer.text = 'n'
-        event.cli.set_return_value(False)
+        event.app.set_return_value(False)
 
     prompt = Prompt(message, extra_key_bindings=registry,
                     include_default_key_bindings=False)

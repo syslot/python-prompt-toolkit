@@ -76,9 +76,9 @@ class Completion(object):
     def new_completion_from_position(self, position):
         """
         (Only for internal use!)
-        Get a new completion by splitting this one. Used by
-        `CommandLineInterface` when it needs to have a list of new completions
-        after inserting the common prefix.
+        Get a new completion by splitting this one. Used by `Application` when
+        it needs to have a list of new completions after inserting the common
+        prefix.
         """
         assert isinstance(position, int) and position - self.start_position >= 0
 

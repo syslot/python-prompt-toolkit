@@ -34,7 +34,7 @@ def main():
         text = buff.text[start:end]
         text = ''.join(reversed(text))
 
-        event.cli.current_buffer.text = buff.text[:start] + text + buff.text[end:]
+        event.app.current_buffer.text = buff.text[:start] + text + buff.text[end:]
 
     # Create a text object.
 

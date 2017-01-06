@@ -166,8 +166,8 @@ def find_all_controls(layout):
     """
     Find all the `UIControl` objects in this layout.
     """
-    from .containers import Layout, Window
-    assert isinstance(layout, Layout)
+    from .containers import Container, Window
+    assert isinstance(layout, Container)
 
     for item in layout.walk():
         if isinstance(item, Window):

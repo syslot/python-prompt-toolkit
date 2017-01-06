@@ -1,7 +1,7 @@
 # encoding: utf-8
 """
-These are almost end-to-end tests. They create a CommandLineInterface
-instance, feed it with some input and check the result.
+These are almost end-to-end tests. They create a Prompt, feed it with some
+input and check the result.
 """
 from __future__ import unicode_literals
 
@@ -15,7 +15,6 @@ from prompt_toolkit.filters import ViInsertMode
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.input import PipeInput
 from prompt_toolkit.input.vt100 import ANSI_SEQUENCES
-from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.bindings.named_commands import prefix_meta
 from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.key_binding.registry import Registry
@@ -34,14 +33,14 @@ def _history():
     return h
 
 
-def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
-                         history=None, multiline=False, check_line_ending=True,
-                         extra_key_bindings=None):
+def _feed_cli_with_input(
+        text, editing_mode=EditingMode.EMACS, clipboard=None, history=None,
+        multiline=False, check_line_ending=True, extra_key_bindings=None):
     """
-    Create a CommandLineInterface, feed it with the given user input and return
-    the CLI object.
+    Create a Prompt, feed it with the given user input and return the CLI
+    object.
 
-    This returns a (result, CLI) tuple.
+    This returns a (result, Application) tuple.
     """
     # If the given text doesn't end with a newline, the interface won't finish.
     if check_line_ending:
@@ -56,7 +55,7 @@ def _feed_cli_with_input(text, editing_mode=EditingMode.EMACS, clipboard=None,
                    extra_key_bindings=extra_key_bindings)
 
         result = p.prompt()
-        return p._default_buffer.document, p.cli
+        return p._default_buffer.document, p.app
 
     finally:
         inp.close()

@@ -18,7 +18,7 @@ def main():
         """
         When F4 has been pressed. Insert "hello world" as text.
         """
-        event.cli.current_buffer.insert_text('hello world')
+        event.app.current_buffer.insert_text('hello world')
 
     @registry.add_binding('x', 'y')
     def _(event):
@@ -31,12 +31,12 @@ def main():
         or not a 'y' will follow. However, prompt-toolkit should already give
         some visual feedback of the typed character.
         """
-        event.cli.current_buffer.insert_text('z')
+        event.app.current_buffer.insert_text('z')
 
     @registry.add_binding('a', 'b', 'c')
     def _(event):
         " Typing 'abc' should insert 'd'. "
-        event.cli.current_buffer.insert_text('d')
+        event.app.current_buffer.insert_text('d')
 
     @registry.add_binding(Keys.ControlT)
     def _(event):
@@ -49,7 +49,7 @@ def main():
         """
         def print_hello():
             print('hello world')
-        event.cli.run_in_terminal(print_hello)
+        event.app.run_in_terminal(print_hello)
 
 
     # Read input.

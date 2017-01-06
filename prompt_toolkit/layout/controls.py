@@ -45,21 +45,21 @@ class UIControl(with_metaclass(ABCMeta, object)):
         # Default reset. (Doesn't have to be implemented.)
         pass
 
-    def preferred_width(self, cli, max_available_width):
+    def preferred_width(self, app, max_available_width):
         return None
 
-    def preferred_height(self, cli, width, max_available_height, wrap_lines):
+    def preferred_height(self, app, width, max_available_height, wrap_lines):
         return None
 
     @abstractmethod
-    def create_content(self, cli, width, height):
+    def create_content(self, app, width, height):
         """
         Generate the content for this user control.
 
         Returns a :class:`.UIContent` instance.
         """
 
-    def mouse_handler(self, cli, mouse_event):
+    def mouse_handler(self, app, mouse_event):
         """
         Handle mouse events.
 
@@ -67,24 +67,24 @@ class UIControl(with_metaclass(ABCMeta, object)):
         handled by the `UIControl` itself. The `Window` or key bindings can
         decide to handle this event as scrolling or changing focus.
 
-        :param cli: `CommandLineInterface` instance.
+        :param app: `Application` instance.
         :param mouse_event: `MouseEvent` instance.
         """
         return NotImplemented
 
-    def move_cursor_down(self, cli):
+    def move_cursor_down(self, app):
         """
         Request to move the cursor down.
         This happens when scrolling down and the cursor is completely at the
         top.
         """
 
-    def move_cursor_up(self, cli):
+    def move_cursor_up(self, app):
         """
         Request to move the cursor up.
         """
 
-    def get_key_bindings(self, cli):
+    def get_key_bindings(self, app):
         """
         The key bindings that are specific for this user control.
 
@@ -240,37 +240,37 @@ class TokenListControl(UIControl):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.get_tokens)
 
-    def _get_tokens_cached(self, cli):
+    def _get_tokens_cached(self, app):
         """
         Get tokens, but only retrieve tokens once during one render run.
         (This function is called several times during one rendering, because
         we also need those for calculating the dimensions.)
         """
         return self._token_cache.get(
-            cli.render_counter, lambda: self.get_tokens(cli))
+            app.render_counter, lambda: self.get_tokens(app))
 
-    def preferred_width(self, cli, max_available_width):
+    def preferred_width(self, app, max_available_width):
         """
         Return the preferred width for this control.
         That is the width of the longest line.
         """
-        text = token_list_to_text(self._get_tokens_cached(cli))
+        text = token_list_to_text(self._get_tokens_cached(app))
         line_lengths = [get_cwidth(l) for l in text.split('\n')]
         return max(line_lengths)
 
-    def preferred_height(self, cli, width, max_available_height, wrap_lines):
-        content = self.create_content(cli, width, None)
+    def preferred_height(self, app, width, max_available_height, wrap_lines):
+        content = self.create_content(app, width, None)
         return content.line_count
 
-    def create_content(self, cli, width, height):
+    def create_content(self, app, width, height):
         # Get tokens
-        tokens_with_mouse_handlers = self._get_tokens_cached(cli)
+        tokens_with_mouse_handlers = self._get_tokens_cached(app)
 
-        default_char = self.get_default_char(cli)
+        default_char = self.get_default_char(app)
 
         # Wrap/align right/center parameters.
-        right = self.align_right(cli)
-        center = self.align_center(cli)
+        right = self.align_right(app)
+        center = self.align_center(app)
 
         def process_line(line):
             " Center or right align a single line. "
@@ -325,11 +325,11 @@ class TokenListControl(UIControl):
 
     @classmethod
     def static(cls, tokens):
-        def get_static_tokens(cli):
+        def get_static_tokens(app):
             return tokens
         return cls(get_static_tokens)
 
-    def mouse_handler(self, cli, mouse_event):
+    def mouse_handler(self, app, mouse_event):
         """
         Handle mouse events.
 
@@ -360,7 +360,7 @@ class TokenListControl(UIControl):
                             # (Handler can return NotImplemented, so return
                             # that result.)
                             handler = item[2]
-                            return handler(cli, mouse_event)
+                            return handler(app, mouse_event)
                         else:
                             break
 
@@ -377,27 +377,17 @@ class FillControl(UIControl):
     :param get_char: A callable that takes a CommandLineInterface and returns a
         :class:`.Char` object.
     """
-    def __init__(self, character=None, token=Token, char=None, get_char=None):  # 'character' and 'token' parameters are deprecated.
+    def __init__(self, char=None, get_char=None):
         assert char is None or isinstance(char, Char)
         assert get_char is None or callable(get_char)
         assert not (char and get_char)
 
         self.char = char
+        self.get_char = get_char
 
-        if character:
-            # Passing (character=' ', token=token) is deprecated.
-            self.character = character
-            self.token = token
-
-            self.get_char = lambda cli: Char(character, token)
-        elif get_char:
-            # When 'get_char' is given.
-            self.get_char = get_char
-        else:
-            # When 'char' is given.
-            self.char = self.char or Char()
-            self.get_char = lambda cli: self.char
-            self.char = char
+    @classmethod
+    def from_character_and_token(cls, character=' ', token=Token):
+        return cls(char=Char(character, token))
 
     def __repr__(self):
         if self.char:
@@ -408,14 +398,19 @@ class FillControl(UIControl):
     def reset(self):
         pass
 
-    def create_content(self, cli, width, height):
+    def create_content(self, app, width, height):
         def get_line(i):
             return []
+
+        if self.get_char:
+            char = self.get_char(app)
+        else:
+            char = self.char or Char()
 
         return UIContent(
             get_line=get_line,
             line_count=100 ** 100,  # Something very big.
-            default_char=self.get_char(cli))
+            default_char=char)
 
 
 _ProcessedLine = namedtuple('_ProcessedLine', 'tokens source_to_display display_to_source')
@@ -510,7 +505,7 @@ class BufferControl(UIControl):
     def search_state(self):
         return self.get_search_state()
 
-    def preferred_width(self, cli, max_available_width):
+    def preferred_width(self, app, max_available_width):
         """
         This should return the preferred width.
 
@@ -523,11 +518,11 @@ class BufferControl(UIControl):
         """
         return None
 
-    def preferred_height(self, cli, width, max_available_height, wrap_lines):
+    def preferred_height(self, app, width, max_available_height, wrap_lines):
         # Calculate the content height, if it was drawn on a screen with the
         # given width.
         height = 0
-        content = self.create_content(cli, width, None)
+        content = self.create_content(app, width, None)
 
         # When line wrapping is off, the height should be equal to the amount
         # of lines.
@@ -547,17 +542,17 @@ class BufferControl(UIControl):
 
         return height
 
-    def _get_tokens_for_line_func(self, cli, document):
+    def _get_tokens_for_line_func(self, app, document):
         """
         Create a function that returns the tokens for a given line.
         """
         # Cache using `document.text`.
         def get_tokens_for_line():
-            return self.lexer.lex_document(cli, document)
+            return self.lexer.lex_document(app, document)
 
         return self._token_cache.get(document.text, get_tokens_for_line)
 
-    def _create_get_processed_line_func(self, cli, document, width, height):
+    def _create_get_processed_line_func(self, app, document, width, height):
         """
         Create a function that takes a line number of the current document and
         returns a _ProcessedLine(processed_tokens, source_to_display, display_to_source)
@@ -581,7 +576,7 @@ class BufferControl(UIControl):
 
             transformation = merged_processor.apply_transformation(
                 TransformationInput(
-                    cli, self, document, lineno, source_to_display, tokens,
+                    app, self, document, lineno, source_to_display, tokens,
                     width, height))
 
             if cursor_column:
@@ -593,7 +588,7 @@ class BufferControl(UIControl):
                 transformation.display_to_source)
 
         def create_func():
-            get_line = self._get_tokens_for_line_func(cli, document)
+            get_line = self._get_tokens_for_line_func(app, document)
             cache = {}
 
             def get_processed_line(i):
@@ -607,7 +602,7 @@ class BufferControl(UIControl):
 
         return create_func()
 
-    def create_content(self, cli, width, height):
+    def create_content(self, app, width, height):
         """
         Create a UIContent.
         """
@@ -619,7 +614,7 @@ class BufferControl(UIControl):
         # text/cursor position.)
         search_control = self.search_buffer_control
         preview_now = bool(
-            search_control and search_control.buffer.text and self.preview_search(cli))
+            search_control and search_control.buffer.text and self.preview_search(app))
 
         if preview_now:
             ss = self.search_state
@@ -632,7 +627,7 @@ class BufferControl(UIControl):
             document = buffer.document
 
         get_processed_line = self._create_get_processed_line_func(
-            cli, document, width, height)
+            app, document, width, height)
         self._last_get_processed_line = get_processed_line
 
         def translate_rowcol(row, col):
@@ -661,8 +656,8 @@ class BufferControl(UIControl):
         # If there is an auto completion going on, use that start point for a
         # pop-up menu position. (But only when this buffer has the focus --
         # there is only one place for a menu, determined by the focussed buffer.)
-        if cli.focussed_control == self:
-            menu_position = self.menu_position(cli) if self.menu_position else None
+        if app.focussed_control == self:
+            menu_position = self.menu_position(app) if self.menu_position else None
             if menu_position is not None:
                 assert isinstance(menu_position, int)
                 menu_row, menu_col = buffer.document.translate_index_to_position(menu_position)
@@ -682,7 +677,7 @@ class BufferControl(UIControl):
 
         return content
 
-    def mouse_handler(self, cli, mouse_event):
+    def mouse_handler(self, app, mouse_event):
         """
         Mouse handler for this control.
         """
@@ -690,7 +685,7 @@ class BufferControl(UIControl):
         position = mouse_event.position
 
         # Focus buffer when clicked.
-        if cli.focussed_control == self:
+        if app.focussed_control == self:
             if self._last_get_processed_line:
                 processed_line = self._last_get_processed_line(position.y)
 
@@ -730,18 +725,18 @@ class BufferControl(UIControl):
 
         # Not focussed, but focussing on click events.
         else:
-            if self.focus_on_click(cli) and mouse_event.event_type == MouseEventType.MOUSE_UP:
+            if self.focus_on_click(app) and mouse_event.event_type == MouseEventType.MOUSE_UP:
                 # Focus happens on mouseup. (If we did this on mousedown, the
                 # up event will be received at the point where this widget is
                 # focussed and be handled anyway.)
-                cli.focussed_control = self
+                app.focussed_control = self
             else:
                 return NotImplemented
 
-    def move_cursor_down(self, cli):
+    def move_cursor_down(self, app):
         b = self.buffer
         b.cursor_position += b.document.get_cursor_down_position()
 
-    def move_cursor_up(self, cli):
+    def move_cursor_up(self, app):
         b = self.buffer
         b.cursor_position += b.document.get_cursor_up_position()

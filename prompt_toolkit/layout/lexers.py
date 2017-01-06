@@ -30,7 +30,7 @@ class Lexer(with_metaclass(ABCMeta, object)):
     Base class for all lexers.
     """
     @abstractmethod
-    def lex_document(self, cli, document):
+    def lex_document(self, app, document):
         """
         Takes a :class:`~prompt_toolkit.document.Document` and returns a
         callable that takes a line number and returns the tokens for that line.
@@ -50,7 +50,7 @@ class SimpleLexer(Lexer):
         if default_token is not None:
             self.token = default_token
 
-    def lex_document(self, cli, document):
+    def lex_document(self, app, document):
         lines = document.lines
 
         def get_line(lineno):
@@ -214,7 +214,7 @@ class PygmentsLexer(Lexer):
         else:
             return cls(pygments_lexer.__class__, sync_from_start=sync_from_start)
 
-    def lex_document(self, cli, document):
+    def lex_document(self, app, document):
         """
         Create a lexer function that takes a line number and returns the list
         of (Token, text) tuples as the Pygments lexer returns for that line.
@@ -227,7 +227,7 @@ class PygmentsLexer(Lexer):
 
         def get_syntax_sync():
             " The Syntax synchronisation objcet that we currently use. "
-            if self.sync_from_start(cli):
+            if self.sync_from_start(app):
                 return SyncFromStart()
             else:
                 return self.syntax_sync
@@ -330,6 +330,6 @@ class DynamicLexer(Lexer):
     def __init__(self, get_lexer):
         self.get_lexer = get_lexer
 
-    def lex_document(self, cli, document):
+    def lex_document(self, app, document):
         lexer = self.get_lexer() or SimpleLexer()
-        return lexer.lex_document(cli, document)
+        return lexer.lex_document(app, document)

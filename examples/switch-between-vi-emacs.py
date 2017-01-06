@@ -18,19 +18,19 @@ def run():
     @registry.add_binding(Keys.F4)
     def _(event):
         " Toggle between Emacs and Vi mode. "
-        if event.cli.editing_mode == EditingMode.VI:
-            event.cli.editing_mode = EditingMode.EMACS
+        if event.app.editing_mode == EditingMode.VI:
+            event.app.editing_mode = EditingMode.EMACS
         else:
-            event.cli.editing_mode = EditingMode.VI
+            event.app.editing_mode = EditingMode.VI
 
     # Add a bottom toolbar to display the status.
     style = style_from_dict({
         Token.Toolbar: 'reverse',
     })
 
-    def get_bottom_toolbar_tokens(cli):
+    def get_bottom_toolbar_tokens(app):
         " Display the current input mode. "
-        text = 'Vi' if cli.editing_mode == EditingMode.VI else 'Emacs'
+        text = 'Vi' if app.editing_mode == EditingMode.VI else 'Emacs'
         return [
             (Token.Toolbar, ' [F4] %s ' % text)
         ]

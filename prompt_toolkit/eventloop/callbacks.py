@@ -9,8 +9,9 @@ __all__ = (
 
 class EventLoopCallbacks(with_metaclass(ABCMeta, object)):
     """
-    This is the glue between the :class:`~prompt_toolkit.eventloop.base.EventLoop`
-    and :class:`~prompt_toolkit.interface.CommandLineInterface`.
+    This is the glue between the
+    :class:`~prompt_toolkit.eventloop.base.EventLoop` and
+    :class:`~prompt_toolkit.application.Application`.
 
     :meth:`~prompt_toolkit.eventloop.base.EventLoop.run` takes an
     :class:`.EventLoopCallbacks` instance and operates on that one, driving the

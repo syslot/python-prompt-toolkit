@@ -36,8 +36,8 @@ class EventLoop(with_metaclass(ABCMeta, object)):
     def stop(self):
         """
         Stop the `run` call. (Normally called by
-        :class:`~prompt_toolkit.interface.CommandLineInterface`, when a result
-        is available, or Abort/Quit has been called.)
+        :class:`~prompt_toolkit.application.Application`, when a result is
+        available, or Abort/Quit has been called.)
         """
 
     @abstractmethod

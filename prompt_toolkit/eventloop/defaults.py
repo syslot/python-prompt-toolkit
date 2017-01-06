@@ -10,8 +10,7 @@ __all__ = (
 def create_event_loop(inputhook=None, recognize_win32_paste=True):
     """
     Create and return an
-    :class:`~prompt_toolkit.eventloop.base.EventLoop` instance for a
-    :class:`~prompt_toolkit.interface.CommandLineInterface`.
+    :class:`~prompt_toolkit.eventloop.base.EventLoop` instance.
     """
     if is_windows():
         from prompt_toolkit.eventloop.win32 import Win32EventLoop as Loop
@@ -24,8 +23,8 @@ def create_event_loop(inputhook=None, recognize_win32_paste=True):
 def create_asyncio_event_loop(loop=None):
     """
     Returns an asyncio :class:`~prompt_toolkit.eventloop.EventLoop` instance
-    for usage in a :class:`~prompt_toolkit.interface.CommandLineInterface`. It
-    is a wrapper around an asyncio loop.
+    for usage in a :class:`~prompt_toolkit.application.Application`. It is a
+    wrapper around an asyncio loop.
 
     :param loop: The asyncio eventloop (or `None` if the default asyncioloop
                  should be used.)

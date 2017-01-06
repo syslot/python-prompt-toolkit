@@ -16,7 +16,7 @@ from .history import History, InMemoryHistory
 from .search_state import SearchState
 from .selection import SelectionType, SelectionState, PasteMode
 from .utils import Event
-from .validation import ValidationError
+from .validation import ValidationError, Validator
 
 from six.moves import range
 
@@ -46,7 +46,7 @@ class AcceptAction(object):
     (When Enter was pressed in the command line.)
 
     :param handler: (optional) A callable which takes a
-        :class:`~prompt_toolkit.interface.CommandLineInterface` and
+        :class:`~prompt_toolkit.application.Application` and
         :class:`~prompt_toolkit.document.Document`. It is called when the user
         accepts input.
     """
@@ -64,8 +64,8 @@ class AcceptAction(object):
                 state first, then execute the function. If False, erase the
                 interface instead.
         """
-        def _handler(cli, buffer):
-            cli.run_in_terminal(lambda: handler(cli, buffer), render_cli_done=render_cli_done)
+        def _handler(app, buffer):
+            app.run_in_terminal(lambda: handler(app, buffer), render_cli_done=render_cli_done)
         return AcceptAction(handler=_handler)
 
     @property
@@ -75,33 +75,33 @@ class AcceptAction(object):
         """
         return bool(self.handler)
 
-    def validate_and_handle(self, cli, buffer):
+    def validate_and_handle(self, app, buffer):
         """
         Validate buffer and handle the accept action.
         """
         if buffer.validate():
             if self.handler:
-                self.handler(cli, buffer)
+                self.handler(app, buffer)
 
             buffer.append_to_history()
 
 
-def _return_document_handler(cli, buffer, _text=False):
+def _return_document_handler(app, buffer, _text=False):
     # Set return value.
     if _text:
-        cli.set_return_value(buffer.document.text)
+        app.set_return_value(buffer.document.text)
     else:
-        cli.set_return_value(buffer.document)
+        app.set_return_value(buffer.document)
 
     # Make sure that if we run this UI again, that we reset this buffer, next
     # time.
     def reset_this_buffer():
         buffer.reset()
-    cli.pre_run_callables.append(reset_this_buffer)
+    app.pre_run_callables.append(reset_this_buffer)
 
 
-def _return_text_handler(cli, buffer):
-    return _return_document_handler(cli, buffer, _text=True)
+def _return_text_handler(app, buffer):
+    return _return_document_handler(app, buffer, _text=True)
 
 
 AcceptAction.RETURN_DOCUMENT = AcceptAction(_return_document_handler)
@@ -230,7 +230,7 @@ class Buffer(object):
     def __init__(self, loop=None, completer=None, auto_suggest=None, history=None,
                  validator=None, tempfile_suffix='', name='',
                  complete_while_typing=False,
-                 enable_history_search=False, initial_document=None,
+                 enable_history_search=False, document=None,
                  accept_action=AcceptAction.IGNORE, read_only=False,
                  on_text_changed=None, on_text_insert=None, on_cursor_position_changed=None,
                  on_completions_changed=None, on_suggestion_set=None):
@@ -245,12 +245,15 @@ class Buffer(object):
         assert completer is None or isinstance(completer, Completer)
         assert auto_suggest is None or isinstance(auto_suggest, AutoSuggest)
         assert history is None or isinstance(history, History)
+        assert validator is None or isinstance(validator, Validator)
+        assert isinstance(tempfile_suffix, six.text_type)
         assert isinstance(name, six.text_type)
         assert on_text_changed is None or callable(on_text_changed)
         assert on_text_insert is None or callable(on_text_insert)
         assert on_cursor_position_changed is None or callable(on_cursor_position_changed)
         assert on_completions_changed is None or callable(on_completions_changed)
         assert on_suggestion_set is None or callable(on_suggestion_set)
+        assert document is None or isinstance(document, Document)
 
         self.loop = loop
         self.completer = completer or DummyCompleter()
@@ -289,20 +292,20 @@ class Buffer(object):
         self._async_suggester = self._create_auto_suggest_function()
         self._async_completer = self._create_async_completer()
 
-        self.reset(initial_document=initial_document)
+        self.reset(document=document)
 
-    def reset(self, initial_document=None, append_to_history=False):
+    def reset(self, document=None, append_to_history=False):
         """
         :param append_to_history: Append current input to history first.
         """
-        assert initial_document is None or isinstance(initial_document, Document)
+        assert document is None or isinstance(document, Document)
 
         if append_to_history:
             self.append_to_history()
 
-        initial_document = initial_document or Document()
+        document = document or Document()
 
-        self.__cursor_position = initial_document.cursor_position
+        self.__cursor_position = document.cursor_position
 
         # `ValidationError` instance. (Will be set when the input is wrong.)
         self.validation_error = None
@@ -346,7 +349,7 @@ class Buffer(object):
         #: Enter should process the current command and append to the real
         #: history.
         self._working_lines = self.history.strings[:]
-        self._working_lines.append(initial_document.text)
+        self._working_lines.append(document.text)
         self.__working_index = len(self._working_lines) - 1
 
     # <getters/setters>
@@ -1285,11 +1288,11 @@ class Buffer(object):
     def exit_selection(self):
         self.selection_state = None
 
-    def open_in_editor(self, cli):
+    def open_in_editor(self, app):
         """
         Open code in editor.
 
-        :param cli: :class:`~prompt_toolkit.interface.CommandLineInterface`
+        :param app: :class:`~prompt_toolkit.application.Application`
             instance.
         """
         if self.read_only():
@@ -1301,10 +1304,10 @@ class Buffer(object):
         os.close(descriptor)
 
         # Open in editor
-        # (We need to use `cli.run_in_terminal`, because not all editors go to
+        # (We need to use `app.run_in_terminal`, because not all editors go to
         # the alternate screen buffer, and some could influence the cursor
         # position.)
-        succes = cli.run_in_terminal(lambda: self._open_file_in_editor(filename))
+        succes = app.run_in_terminal(lambda: self._open_file_in_editor(filename))
 
         # Read content again.
         if succes:

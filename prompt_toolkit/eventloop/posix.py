@@ -201,10 +201,9 @@ class PosixEventLoop(EventLoop):
         # output, and doing this inside the signal handler causes easily
         # reentrant calls, giving runtime errors..
 
-        # Furthur, this has to be thread safe. When the CommandLineInterface
-        # runs not in the main thread, this function still has to be called
-        # from the main thread. (The only place where we can install signal
-        # handlers.)
+        # Furthur, this has to be thread safe. When the Application runs not in
+        # the main thread, this function still has to be called from the main
+        # thread. (The only place where we can install signal handlers.)
         def process_winch():
             if self._callbacks:
                 self._callbacks.terminal_size_changed()

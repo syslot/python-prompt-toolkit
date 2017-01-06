@@ -61,10 +61,10 @@ def display_completions_like_readline(event):
         b.insert_text(common_suffix)
     # Otherwise: display all completions.
     elif completions:
-        _display_completions_like_readline(event.cli, completions)
+        _display_completions_like_readline(event.app, completions)
 
 
-def _display_completions_like_readline(cli, completions):
+def _display_completions_like_readline(app, completions):
     """
     Display the list of completions in columns above the prompt.
     This will ask for a confirmation if there are too many completions to fit
@@ -74,7 +74,7 @@ def _display_completions_like_readline(cli, completions):
     assert isinstance(completions, list)
 
     # Get terminal dimensions.
-    term_size = cli.output.get_size()
+    term_size = app.output.get_size()
     term_width = term_size.columns
     term_height = term_size.rows
 
@@ -105,8 +105,8 @@ def _display_completions_like_readline(cli, completions):
                 except IndexError:
                     pass
             result.append('\n')
-        cli.output.write(''.join(result))
-        cli.output.flush()
+        app.output.write(''.join(result))
+        app.output.flush()
 
     # User interaction through an application generator function.
     def run():
@@ -114,7 +114,7 @@ def _display_completions_like_readline(cli, completions):
             # Ask confirmation if it doesn't fit on the screen.
             confirm_prompt = create_confirm_prompt(
                 'Display all {} possibilities? (y on n) '.format(len(completions)))
-            confirm = yield confirm_prompt.cli
+            confirm = yield confirm_prompt.app
 
             if confirm:
                 # Display pages.
@@ -123,16 +123,16 @@ def _display_completions_like_readline(cli, completions):
 
                     if page != page_count - 1:
                         # Display --MORE-- and go to the next page.
-                        show_more = yield _create_more_application(cli.eventloop)
+                        show_more = yield _create_more_application(app.eventloop)
                         if not show_more:
                             return
             else:
-                cli.output.write('\n'); cli.output.flush()
+                app.output.write('\n'); app.output.flush()
         else:
             # Display all completions.
             display(0)
 
-    cli.run_application_generator(run, render_cli_done=True)
+    app.run_application_generator(run, render_cli_done=True)
 
 
 def _create_more_application(loop):
@@ -149,7 +149,7 @@ def _create_more_application(loop):
     @registry.add_binding(Keys.ControlM)
     @registry.add_binding(Keys.ControlI)  # Tab.
     def _(event):
-        event.cli.set_return_value(True)
+        event.app.set_return_value(True)
 
     @registry.add_binding('n')
     @registry.add_binding('N')
@@ -157,7 +157,7 @@ def _create_more_application(loop):
     @registry.add_binding('Q')
     @registry.add_binding(Keys.ControlC)
     def _(event):
-        event.cli.set_return_value(False)
+        event.app.set_return_value(False)
 
     return create_prompt_application('--MORE--',
         loop=loop, extra_key_bindings=registry,

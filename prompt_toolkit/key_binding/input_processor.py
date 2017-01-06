@@ -8,7 +8,7 @@ correct callbacks when new key presses are feed through `feed`.
 """
 from __future__ import unicode_literals
 from prompt_toolkit.buffer import EditReadOnlyBuffer
-from prompt_toolkit.filters.cli import ViNavigationMode
+from prompt_toolkit.filters.app import ViNavigationMode
 from prompt_toolkit.keys import Keys, Key
 from prompt_toolkit.utils import Event
 
@@ -68,13 +68,13 @@ class InputProcessor(object):
         # registered in the registry.
 
     :param registry: `BaseRegistry` instance.
-    :param cli_ref: weakref to `CommandLineInterface`.
+    :param app_ref: weakref to `Application`.
     """
-    def __init__(self, registry, cli_ref):
+    def __init__(self, registry, app_ref):
         assert isinstance(registry, BaseRegistry)
 
         self._registry = registry
-        self._cli_ref = cli_ref
+        self._app_ref = app_ref
 
         self.beforeKeyPress = Event(self)
         self.afterKeyPress = Event(self)
@@ -122,10 +122,10 @@ class InputProcessor(object):
         that would handle this.
         """
         keys = tuple(k.key for k in key_presses)
-        cli = self._cli_ref()
+        app = self._app_ref()
 
         # Try match, with mode flag
-        return [b for b in self._registry.get_bindings_for_keys(keys) if b.filter(cli)]
+        return [b for b in self._registry.get_bindings_for_keys(keys) if b.filter(app)]
 
     def _is_prefix_of_longer_match(self, key_presses):
         """
@@ -133,7 +133,7 @@ class InputProcessor(object):
         handler that is bound to a suffix of this keys.
         """
         keys = tuple(k.key for k in key_presses)
-        cli = self._cli_ref()
+        app = self._app_ref()
 
         # Get the filters for all the key bindings that have a longer match.
         # Note that we transform it into a `set`, because we don't care about
@@ -142,7 +142,7 @@ class InputProcessor(object):
         filters = set(b.filter for b in self._registry.get_bindings_starting_with_keys(keys))
 
         # When any key binding is active, return True.
-        return any(f(cli) for f in filters)
+        return any(f(app) for f in filters)
 
     def _process(self):
         """
@@ -165,7 +165,7 @@ class InputProcessor(object):
 
                 # When eager matches were found, give priority to them and also
                 # ignore all the longer matches.
-                eager_matches = [m for m in matches if m.eager(self._cli_ref())]
+                eager_matches = [m for m in matches if m.eager(self._app_ref())]
 
                 if eager_matches:
                     matches = eager_matches
@@ -222,9 +222,9 @@ class InputProcessor(object):
                 self.afterKeyPress.fire()
 
         # Invalidate user interface.
-        cli = self._cli_ref()
-        if cli:
-            cli.invalidate()
+        app = self._app_ref()
+        if app:
+            app.invalidate()
 
     def _call_handler(self, handler, key_sequence=None):
         was_recording = self.record_macro
@@ -237,10 +237,10 @@ class InputProcessor(object):
             is_repeat=(handler == self._previous_handler))
 
         # Save the state of the current buffer.
-        cli = event.cli  # Can be `None` (In unit-tests only.)
+        app = event.app  # Can be `None` (In unit-tests only.)
 
-        if handler.save_before(event) and cli:
-            cli.current_buffer.save_to_undo_stack()
+        if handler.save_before(event) and app:
+            app.current_buffer.save_to_undo_stack()
 
         # Call handler.
         try:
@@ -266,12 +266,12 @@ class InputProcessor(object):
         never put the cursor after the last character of a line. (Unless it's
         an empty line.)
         """
-        cli = self._cli_ref()
-        if cli:
-            buff = cli.current_buffer
+        app = self._app_ref()
+        if app:
+            buff = app.current_buffer
             preferred_column = buff.preferred_column
 
-            if (ViNavigationMode()(event.cli) and
+            if (ViNavigationMode()(event.app) and
                     buff.document.is_cursor_at_the_end_of_line and
                     len(buff.document.current_line) > 0):
                 buff.cursor_position -= 1
@@ -316,18 +316,18 @@ class KeyPressEvent(object):
         return self._input_processor_ref()
 
     @property
-    def cli(self):
+    def app(self):
         """
         Command line interface.
         """
-        return self.input_processor._cli_ref()
+        return self.input_processor._app_ref()
 
     @property
     def current_buffer(self):
         """
         The current buffer.
         """
-        return self.cli.current_buffer
+        return self.app.current_buffer
 
     @property
     def arg(self):

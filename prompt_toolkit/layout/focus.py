@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from .containers import Layout
+from .containers import Container
 from .controls import UIControl
 from .utils import find_all_controls
 
@@ -13,7 +13,7 @@ class Focus(object):
     Keep track of which `UIControl` currently has the focus.
     """
     def __init__(self, layout, focussed_control=None):
-        assert isinstance(layout, Layout)
+        assert isinstance(layout, Container)
         assert focussed_control is None or isinstance(focussed_control, UIControl)
 
         if focussed_control is None:

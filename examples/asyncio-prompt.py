@@ -7,11 +7,11 @@ coroutines are writing to stdout, they write above the prompt, not destroying
 the input line.
 This example does several things:
     1. It starts a simple coroutine, printing a counter to stdout every second.
-    2. It starts a simple input/echo cli loop which reads from stdin.
+    2. It starts a simple input/echo app loop which reads from stdin.
 Very important is the following patch. If you are passing stdin by reference to
 other parts of the code, make sure that this patch is applied as early as
 possible. ::
-    sys.stdout = cli.stdout_proxy()
+    sys.stdout = app.stdout_proxy()
 """
 
 from prompt_toolkit.shortcuts import Prompt
@@ -48,7 +48,7 @@ async def interactive_shell():
     # something is written to stdout.
     # (This is optional, when `patch_stdout=True` has been given before.)
 
-    ## sys.stdout = prompt.cli.stdout_proxy()
+    ## sys.stdout = prompt.app.stdout_proxy()
 
     # Run echo loop. Read text from stdin, and reply it back.
     while True:

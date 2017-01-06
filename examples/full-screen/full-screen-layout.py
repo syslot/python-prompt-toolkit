@@ -63,7 +63,7 @@ layout = VSplit([
 # but the user doesn't see any feedback. We will add the search toolbar to the
 # bottom by using an HSplit.
 
-def get_titlebar_tokens(cli):
+def get_titlebar_tokens(app):
     return [
         (Token.Title, ' Hello world '),
         (Token.Title, ' (Press [Ctrl-Q] to quit.)'),
@@ -124,7 +124,7 @@ def _(event):
     Note that Ctrl-Q does not work on all terminals. Sometimes it requires
     executing `stty -ixon`.
     """
-    event.cli.set_return_value(None)
+    event.app.set_return_value(None)
 
 # 3. Create the buffers
 #    ------------------
@@ -185,10 +185,10 @@ def run():
     try:
         # Create a `CommandLineInterface` instance. This is a wrapper around
         # `Application`, but includes all I/O: eventloops, terminal input and output.
-        cli = CommandLineInterface(application=application, eventloop=eventloop)
+        app = CommandLineInterface(application=application, eventloop=eventloop)
 
         # Run the interface. (This runs the event loop until Ctrl-Q is pressed.)
-        cli.run()
+        app.run()
 
     finally:
         # Clean up. An eventloop creates a posix pipe. This is used internally

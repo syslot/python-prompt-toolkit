@@ -40,12 +40,12 @@ class _FilterType(with_metaclass(_FilterTypeMeta)):
 class CLIFilter(_FilterType):
     """
     Abstract base class for filters that accept a
-    :class:`~prompt_toolkit.interface.CommandLineInterface` argument. It cannot
+    :class:`~prompt_toolkit.application.Application` argument. It cannot
     be instantiated, it's only to be used for instance assertions, e.g.::
 
         isinstance(my_filter, CliFilter)
     """
-    arguments_list = ['cli']
+    arguments_list = ['app']
 
 
 class SimpleFilter(_FilterType):

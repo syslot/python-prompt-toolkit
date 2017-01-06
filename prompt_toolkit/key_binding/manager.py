@@ -84,10 +84,10 @@ class KeyBindingManager(object):
 
         return cls(**kw)
 
-    def reset(self, cli):
+    def reset(self, app):
         # For backwards compatibility.
         pass
 
-    def get_vi_state(self, cli):
+    def get_vi_state(self, app):
         # Deprecated!
-        return cli.vi_state
+        return app.vi_state

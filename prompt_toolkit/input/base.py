@@ -20,7 +20,7 @@ class Input(with_metaclass(ABCMeta, object)):
     Abstraction for any input.
 
     An instance of this class can be given to the constructor of a
-    :class:`~prompt_toolkit.interface.CommandLineInterface` and will also be
+    :class:`~prompt_toolkit.application.Application` and will also be
     passed to the :class:`~prompt_toolkit.eventloop.base.EventLoop`.
     """
     @abstractmethod
@@ -71,9 +71,6 @@ class PipeInput(Input):
     def send_text(self, data):
         " Send text to the input. "
         os.write(self._w, data.encode('utf-8'))
-
-    # Deprecated alias for `send_text`.
-    send = send_text
 
     def raw_mode(self):
         return DummyContext()

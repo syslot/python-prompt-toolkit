@@ -134,27 +134,27 @@ class TelnetConnection(object):
 
         # Draw for the first time.
         self.handling_command = False
-        self.cli._redraw()
+        self.app._redraw()
 
     def set_application(self, app, callback=None):
         """
         Set ``CommandLineInterface`` instance for this connection.
         (This can be replaced any time.)
 
-        :param cli: CommandLineInterface instance.
+        :param app: CommandLineInterface instance.
         :param callback: Callable that takes the result of the CLI.
         """
         assert isinstance(app, Application)
         assert callback is None or callable(callback)
 
-        self.cli = CommandLineInterface(
+        self.app = CommandLineInterface(
             application=app,
             eventloop=self.eventloop,
             output=self.vt100_output)
         self.callback = callback
 
         # Create a parser, and parser callbacks.
-        cb = self.cli.create_eventloop_callbacks()
+        cb = self.app.create_eventloop_callbacks()
         inputstream = InputStream(cb.feed_key)
 
         # Input decoder for stdin. (Required when working with multibyte
@@ -164,7 +164,7 @@ class TelnetConnection(object):
 
         # Tell the CLI that it's running. We don't start it through the run()
         # call, but will still want _redraw() to work.
-        self.cli._is_running = True
+        self.app._is_running = True
 
         def data_received(data):
             """ TelnetProtocolParser 'data_received' callback """
@@ -193,12 +193,12 @@ class TelnetConnection(object):
         self.parser.feed(data)
 
         # Render again.
-        self.cli._redraw()
+        self.app._redraw()
 
         # When a return value has been set (enter was pressed), handle command.
-        if self.cli.is_returning:
+        if self.app.is_returning:
             try:
-                return_value = self.cli.return_value()
+                return_value = self.app.return_value()
             except (EOFError, KeyboardInterrupt) as e:
                 # Control-D or Control-C was pressed.
                 logger.info('%s, closing connection.', type(e).__name__)
@@ -229,11 +229,11 @@ class TelnetConnection(object):
             # Reset state and draw again. (If the connection is still open --
             # the application could have called TelnetConnection.close()
             if not self.closed:
-                self.cli.reset()
-                self.cli.buffers[DEFAULT_BUFFER].reset()
-                self.cli.renderer.request_absolute_cursor_position()
+                self.app.reset()
+                self.app.buffers[DEFAULT_BUFFER].reset()
+                self.app.renderer.request_absolute_cursor_position()
                 self.vt100_output.flush()
-                self.cli._redraw()
+                self.app._redraw()
 
         self.server.run_in_executor(in_executor)
 

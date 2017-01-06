@@ -10,7 +10,7 @@ from .utils import token_list_len
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import SYSTEM_BUFFER, SearchDirection
 from prompt_toolkit.key_binding.vi_state import InputMode
-from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone, EmacsMode, ViMode, ViNavigationMode
+from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone, EmacsMode, ViMode, ViNavigationMode, IsSearching
 from prompt_toolkit.key_binding.registry import Registry, MergedRegistry, ConditionalRegistry
 from prompt_toolkit.token import Token
 from prompt_toolkit.keys import Keys
@@ -57,7 +57,7 @@ class SystemToolbarControl(BufferControl):
         @handle(Keys.Escape, '!', filter= ~has_focus & EmacsMode())
         def _(event):
             " M-'!' will focus this user control. "
-            event.cli.focussed_control = self
+            event.app.focussed_control = self
 
         @handle(Keys.Escape, filter=has_focus)
         @handle(Keys.ControlG, filter=has_focus)
@@ -65,14 +65,14 @@ class SystemToolbarControl(BufferControl):
         def _(event):
             " Hide system prompt. "
             self.system_buffer.reset()
-            event.cli.focus.focus_previous()
+            event.app.focus.focus_previous()
 
         @handle(Keys.Enter, filter=has_focus)
         def _(event):
             " Run system command. "
-            event.cli.run_system_command(self.system_buffer.text)
+            event.app.run_system_command(self.system_buffer.text)
             self.system_buffer.reset(append_to_history=True)
-            event.cli.focus.focus_previous()
+            event.app.focus.focus_previous()
 
         # Vi.
         vi_registry = Registry()
@@ -81,31 +81,31 @@ class SystemToolbarControl(BufferControl):
         @handle('!', filter=~has_focus & ViNavigationMode())
         def _(event):
             " Focus. "
-            event.cli.vi_state.input_mode = InputMode.INSERT
-            event.cli.focussed_control = self
+            event.app.vi_state.input_mode = InputMode.INSERT
+            event.app.focussed_control = self
 
         @handle(Keys.Escape, filter=has_focus)
         @handle(Keys.ControlC, filter=has_focus)
         def _(event):
             " Hide system prompt. "
-            event.cli.vi_state.input_mode = InputMode.NAVIGATION
+            event.app.vi_state.input_mode = InputMode.NAVIGATION
             self.system_buffer.reset()
-            event.cli.focus.focus_previous()
+            event.app.focus.focus_previous()
 
         @handle(Keys.Enter, filter=has_focus)
         def _(event):
             " Run system command. "
-            event.cli.vi_state.input_mode = InputMode.NAVIGATION
-            event.cli.run_system_command(self.system_buffer.text)
+            event.app.vi_state.input_mode = InputMode.NAVIGATION
+            event.app.run_system_command(self.system_buffer.text)
             self.system_buffer.reset(append_to_history=True)
-            event.cli.focus.focus_previous()
+            event.app.focus.focus_previous()
 
         return MergedRegistry([
             ConditionalRegistry(emacs_registry, EmacsMode()),
             ConditionalRegistry(vi_registry, ViMode()),
         ])
 
-    def get_key_bindings(self, cli):
+    def get_key_bindings(self, app):
         return UIControlKeyBindings(registry=self._registry, modal=False)
 
 
@@ -120,8 +120,8 @@ class SystemToolbar(ConditionalContainer):
 
 class ArgToolbarControl(TokenListControl):
     def __init__(self):
-        def get_tokens(cli):
-            arg = cli.input_processor.arg
+        def get_tokens(app):
+            arg = app.input_processor.arg
             if arg == '-':
                 arg = '-1'
 
@@ -142,6 +142,7 @@ class ArgToolbar(ConditionalContainer):
             filter=HasArg())
 
 
+
 class SearchToolbarControl(BufferControl):
     """
     :param vi_mode: Display '/' and '?' instead of I-search.
@@ -150,11 +151,12 @@ class SearchToolbarControl(BufferControl):
         assert isinstance(search_buffer, Buffer)
 
         token = Token.Toolbar.Search
+        is_searching = IsSearching()
 
-        def get_before_input(cli):
-            if not cli.is_searching:
+        def get_before_input(app):
+            if not is_searching(app):
                 text = ''
-            elif cli.current_search_state.direction == SearchDirection.BACKWARD:
+            elif app.current_search_state.direction == SearchDirection.BACKWARD:
                 text = ('?' if vi_mode else 'I-search backward: ')
             else:
                 text = ('/' if vi_mode else 'I-search: ')
@@ -181,8 +183,8 @@ class SearchToolbar(ConditionalContainer):
 class CompletionsToolbarControl(UIControl):
     token = Token.Toolbar.Completions
 
-    def create_content(self, cli, width, height):
-        complete_state = cli.current_buffer.complete_state
+    def create_content(self, app, width, height):
+        complete_state = app.current_buffer.complete_state
         if complete_state:
             completions = complete_state.current_completions
             index = complete_state.complete_index  # Can be None!
@@ -248,8 +250,8 @@ class ValidationToolbarControl(TokenListControl):
     def __init__(self, show_position=False):
         token = Token.Toolbar.Validation
 
-        def get_tokens(cli):
-            buffer = cli.current_buffer
+        def get_tokens(app):
+            buffer = app.current_buffer
 
             if buffer.validation_error:
                 row, column = buffer.document.translate_index_to_position(
