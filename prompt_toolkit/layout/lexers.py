@@ -332,4 +332,5 @@ class DynamicLexer(Lexer):
 
     def lex_document(self, app, document):
         lexer = self.get_lexer() or SimpleLexer()
+        assert isinstance(lexer, Lexer)
         return lexer.lex_document(app, document)
