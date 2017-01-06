@@ -7,7 +7,7 @@ from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 from six.moves import range
 
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
 from .utils import token_list_to_text
@@ -67,8 +67,8 @@ class NumberredMargin(Margin):
         like Vi does.
     """
     def __init__(self, relative=False, display_tildes=False):
-        self.relative = to_cli_filter(relative)
-        self.display_tildes = to_cli_filter(display_tildes)
+        self.relative = to_app_filter(relative)
+        self.display_tildes = to_app_filter(display_tildes)
 
     def get_width(self, app, get_ui_content):
         line_count = get_ui_content().line_count
@@ -126,7 +126,7 @@ class ConditionalMargin(Margin):
         assert isinstance(margin, Margin)
 
         self.margin = margin
-        self.filter = to_cli_filter(filter)
+        self.filter = to_app_filter(filter)
 
     def get_width(self, app, ui_content):
         if self.filter(app):
@@ -148,7 +148,7 @@ class ScrollbarMargin(Margin):
     :param display_arrows: Display scroll up/down arrows.
     """
     def __init__(self, display_arrows=False):
-        self.display_arrows = to_cli_filter(display_arrows)
+        self.display_arrows = to_app_filter(display_arrows)
 
     def get_width(self, app, ui_content):
         return 1
@@ -206,14 +206,14 @@ class PromptMargin(Margin):
     :param get_continuation_tokens: Callable that takes an Application
         and a width as input and returns a list of (Token, type) tuples for the
         next lines of the input.
-    :param show_numbers: (bool or :class:`~prompt_toolkit.filters.CLIFilter`)
+    :param show_numbers: (bool or :class:`~prompt_toolkit.filters.AppFilter`)
         Display line numbers instead of the continuation prompt.
     """
     def __init__(self, get_prompt_tokens, get_continuation_tokens=None,
                  show_numbers=False):
         assert callable(get_prompt_tokens)
         assert get_continuation_tokens is None or callable(get_continuation_tokens)
-        show_numbers = to_cli_filter(show_numbers)
+        show_numbers = to_app_filter(show_numbers)
 
         self.get_prompt_tokens = get_prompt_tokens
         self.get_continuation_tokens = get_continuation_tokens

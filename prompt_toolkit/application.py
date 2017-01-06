@@ -6,7 +6,7 @@ from .clipboard import Clipboard, InMemoryClipboard
 from .enums import EditingMode
 from .eventloop.base import EventLoop
 from .eventloop.callbacks import EventLoopCallbacks
-from .filters import CLIFilter, to_cli_filter
+from .filters import AppFilter, to_app_filter
 from .filters import Condition, IsSearching
 from .input import StdinInput, Input
 from .key_binding.defaults import load_key_bindings
@@ -77,9 +77,9 @@ class Application(object):
 
     Filters:
 
-    :param mouse_support: (:class:`~prompt_toolkit.filters.CLIFilter` or
+    :param mouse_support: (:class:`~prompt_toolkit.filters.AppFilter` or
         boolean). When True, enable mouse support.
-    :param paste_mode: :class:`~prompt_toolkit.filters.CLIFilter` or boolean.
+    :param paste_mode: :class:`~prompt_toolkit.filters.AppFilter` or boolean.
     :param editing_mode: :class:`~prompt_toolkit.enums.EditingMode`.
 
     Callbacks (all of these should accept a
@@ -122,9 +122,9 @@ class Application(object):
                  # I/O.
                  loop=None, input=None, output=None):
 
-        paste_mode = to_cli_filter(paste_mode)
-        mouse_support = to_cli_filter(mouse_support)
-        reverse_vi_search_direction = to_cli_filter(reverse_vi_search_direction)
+        paste_mode = to_app_filter(paste_mode)
+        mouse_support = to_app_filter(mouse_support)
+        reverse_vi_search_direction = to_app_filter(reverse_vi_search_direction)
 
         assert isinstance(layout, Container)
         assert key_bindings_registry is None or isinstance(key_bindings_registry, BaseRegistry)
@@ -133,7 +133,7 @@ class Application(object):
         assert on_exit in AbortAction._all
         assert isinstance(use_alternate_screen, bool)
         assert get_title is None or callable(get_title)
-        assert isinstance(paste_mode, CLIFilter)
+        assert isinstance(paste_mode, AppFilter)
         assert isinstance(editing_mode, six.string_types)
         assert on_input_timeout is None or callable(on_input_timeout)
         assert style is None or isinstance(style, Style)

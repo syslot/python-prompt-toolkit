@@ -218,7 +218,7 @@ class Condition(Filter):
     :param func: Callable which takes either a
         :class:`~prompt_toolkit.application.Application` or nothing and
         returns a boolean. (Depending on what it takes, this will become a
-        :class:`.Filter` or :class:`~prompt_toolkit.filters.CLIFilter`.)
+        :class:`.Filter` or :class:`~prompt_toolkit.filters.AppFilter`.)
     """
     def __init__(self, func):
         assert callable(func)

@@ -4,7 +4,7 @@ Renders the command line on the console.
 """
 from __future__ import unicode_literals
 
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from prompt_toolkit.layout.mouse_handlers import MouseHandlers
 from prompt_toolkit.layout.screen import Point, Screen, WritePosition
 from prompt_toolkit.output import Output
@@ -241,7 +241,7 @@ class Renderer(object):
         self.style = style
         self.output = output
         self.use_alternate_screen = use_alternate_screen
-        self.mouse_support = to_cli_filter(mouse_support)
+        self.mouse_support = to_app_filter(mouse_support)
 
         self._in_alternate_screen = False
         self._mouse_support_enabled = False

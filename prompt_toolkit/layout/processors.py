@@ -13,7 +13,7 @@ from six.moves import range
 from prompt_toolkit.cache import SimpleCache
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import SearchDirection
-from prompt_toolkit.filters import to_cli_filter, ViInsertMultipleMode
+from prompt_toolkit.filters import to_app_filter, ViInsertMultipleMode
 from prompt_toolkit.layout.utils import token_list_to_text
 from prompt_toolkit.reactive import Integer
 from prompt_toolkit.token import Token
@@ -126,7 +126,7 @@ class HighlightSearchProcessor(Processor):
         last active search state.
     """
     def __init__(self, preview_search=False):
-        self.preview_search = to_cli_filter(preview_search)
+        self.preview_search = to_app_filter(preview_search)
 
     def _get_search_text(self, app, buffer_control):
         """
@@ -741,13 +741,13 @@ class ConditionalProcessor(Processor):
                                  Condition(highlight_enabled))])
 
     :param processor: :class:`.Processor` instance.
-    :param filter: :class:`~prompt_toolkit.filters.CLIFilter` instance.
+    :param filter: :class:`~prompt_toolkit.filters.AppFilter` instance.
     """
     def __init__(self, processor, filter):
         assert isinstance(processor, Processor)
 
         self.processor = processor
-        self.filter = to_cli_filter(filter)
+        self.filter = to_app_filter(filter)
 
     def apply_transformation(self, transformation_input):
         # Run processor when enabled.

@@ -15,7 +15,7 @@ Usage::
 """
 from __future__ import unicode_literals
 from .defaults import load_key_bindings
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from prompt_toolkit.key_binding.registry import Registry, ConditionalRegistry, MergedRegistry
 
 __all__ = (
@@ -52,7 +52,7 @@ class KeyBindingManager(object):
                  enable_auto_suggest_bindings=False):
 
         assert registry is None or isinstance(registry, Registry)
-        enable_all = to_cli_filter(enable_all)
+        enable_all = to_app_filter(enable_all)
 
         defaults = load_key_bindings(
              enable_abort_and_exit_bindings=enable_abort_and_exit_bindings,

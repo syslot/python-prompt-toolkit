@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from six.moves import zip_longest, range
-from prompt_toolkit.filters import HasCompletions, IsDone, Condition, to_cli_filter
+from prompt_toolkit.filters import HasCompletions, IsDone, Condition, to_app_filter
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.token import Token
 from prompt_toolkit.utils import get_cwidth
@@ -180,8 +180,8 @@ def _trim_text(text, max_width):
 
 class CompletionsMenu(ConditionalContainer):
     def __init__(self, max_height=None, scroll_offset=0, extra_filter=True, display_arrows=False):
-        extra_filter = to_cli_filter(extra_filter)
-        display_arrows = to_cli_filter(display_arrows)
+        extra_filter = to_app_filter(extra_filter)
+        display_arrows = to_app_filter(display_arrows)
 
         super(CompletionsMenu, self).__init__(
             content=Window(
@@ -423,12 +423,12 @@ class MultiColumnCompletionMenuControl(UIControl):
 class MultiColumnCompletionsMenu(HSplit):
     """
     Container that displays the completions in several columns.
-    When `show_meta` (a :class:`~prompt_toolkit.filters.CLIFilter`) evaluates
+    When `show_meta` (a :class:`~prompt_toolkit.filters.AppFilter`) evaluates
     to True, it shows the meta information at the bottom.
     """
     def __init__(self, min_rows=3, suggested_max_column_width=30, show_meta=True, extra_filter=True):
-        show_meta = to_cli_filter(show_meta)
-        extra_filter = to_cli_filter(extra_filter)
+        show_meta = to_app_filter(show_meta)
+        extra_filter = to_app_filter(extra_filter)
 
         # Display filter: show when there are completions but not at the point
         # we are returning the input.

@@ -8,7 +8,7 @@ from six import with_metaclass
 from six.moves import range
 
 from prompt_toolkit.token import Token
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from .utils import split_lines
 
 import re
@@ -187,7 +187,7 @@ class PygmentsLexer(Lexer):
         assert syntax_sync is None or isinstance(syntax_sync, SyntaxSync)
 
         self.pygments_lexer_cls = pygments_lexer_cls
-        self.sync_from_start = to_cli_filter(sync_from_start)
+        self.sync_from_start = to_app_filter(sync_from_start)
 
         # Instantiate the Pygments lexer.
         self.pygments_lexer = pygments_lexer_cls(

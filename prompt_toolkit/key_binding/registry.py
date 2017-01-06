@@ -27,7 +27,7 @@ from __future__ import unicode_literals
 from abc import ABCMeta, abstractmethod
 
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.filters import CLIFilter, to_cli_filter, Never
+from prompt_toolkit.filters import AppFilter, to_app_filter, Never
 from prompt_toolkit.keys import Key, Keys
 
 from six import text_type, with_metaclass
@@ -48,8 +48,8 @@ class _Binding(object):
     def __init__(self, keys, handler, filter=None, eager=None, save_before=None):
         assert isinstance(keys, tuple)
         assert callable(handler)
-        assert isinstance(filter, CLIFilter)
-        assert isinstance(eager, CLIFilter)
+        assert isinstance(filter, AppFilter)
+        assert isinstance(eager, AppFilter)
         assert callable(save_before)
 
         self.keys = keys
@@ -118,9 +118,9 @@ class Registry(BaseRegistry):
         """
         Decorator for annotating key bindings.
 
-        :param filter: :class:`~prompt_toolkit.filters.CLIFilter` to determine
+        :param filter: :class:`~prompt_toolkit.filters.AppFilter` to determine
             when this key binding is active.
-        :param eager: :class:`~prompt_toolkit.filters.CLIFilter` or `bool`.
+        :param eager: :class:`~prompt_toolkit.filters.AppFilter` or `bool`.
             When True, ignore potential longer matches when this key binding is
             hit. E.g. when there is an active eager key binding for Ctrl-X,
             execute the handler immediately and ignore the key binding for
@@ -129,10 +129,10 @@ class Registry(BaseRegistry):
             we should save the current buffer, before handling the event.
             (That's the default.)
         """
-        filter = to_cli_filter(kwargs.pop('filter', True))
-        eager = to_cli_filter(kwargs.pop('eager', False))
+        filter = to_app_filter(kwargs.pop('filter', True))
+        eager = to_app_filter(kwargs.pop('eager', False))
         save_before = kwargs.pop('save_before', lambda e: True)
-        to_cli_filter(kwargs.pop('invalidate_ui', True))  # Deprecated! (ignored.)
+        to_app_filter(kwargs.pop('invalidate_ui', True))  # Deprecated! (ignored.)
 
         assert not kwargs
         assert keys
@@ -281,14 +281,14 @@ class ConditionalRegistry(_ProxyMixin):
     enable/disabled according to the given `filter`.
 
     :param registries: List of `Registry` objects.
-    :param filter: `CLIFilter` object.
+    :param filter: `AppFilter` object.
     """
     def __init__(self, registry, filter=True):
         assert isinstance(registry, BaseRegistry)
         _ProxyMixin.__init__(self)
 
         self.registry = registry
-        self.filter = to_cli_filter(filter)
+        self.filter = to_app_filter(filter)
 
     def _update_cache(self):
         " If the original registry was changed. Update our copy version. "

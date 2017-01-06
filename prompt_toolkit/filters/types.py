@@ -4,7 +4,7 @@ from collections import defaultdict
 import weakref
 
 __all__ = (
-    'CLIFilter',
+    'AppFilter',
     'SimpleFilter',
 )
 
@@ -37,7 +37,7 @@ class _FilterType(with_metaclass(_FilterTypeMeta)):
         raise NotImplementedError('This class should not be initiated.')
 
 
-class CLIFilter(_FilterType):
+class AppFilter(_FilterType):
     """
     Abstract base class for filters that accept a
     :class:`~prompt_toolkit.application.Application` argument. It cannot

@@ -126,11 +126,11 @@ class Prompt(object):
     be a replacement for `raw_input`.
 
     :param message: Text to be shown before the prompt.
-    :param multiline: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
+    :param multiline: `bool` or :class:`~prompt_toolkit.filters.AppFilter`.
         When True, prefer a layout that is more adapted for multiline input.
         Text after newlines is automatically indented, and search/arg input is
         shown below the input, instead of replacing the prompt.
-    :param wrap_lines: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`.
+    :param wrap_lines: `bool` or :class:`~prompt_toolkit.filters.AppFilter`.
         When True (the default), automatically wrap long lines instead of
         scrolling horizontally.
     :param is_password: Show asterisks instead of the actual typed characters.
@@ -154,10 +154,10 @@ class Prompt(object):
         instance for input suggestions.
     :param style: :class:`.Style` instance for the color scheme.
     :param enable_system_bindings: `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter`. Pressing Meta+'!' will show
+        :class:`~prompt_toolkit.filters.AppFilter`. Pressing Meta+'!' will show
         a system prompt.
     :param enable_open_in_editor: `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter`. Pressing 'v' in Vi mode or
+        :class:`~prompt_toolkit.filters.AppFilter`. Pressing 'v' in Vi mode or
         C-X C-E in emacs mode will open an external editor.
     :param history: :class:`~prompt_toolkit.history.History` instance.
     :param clipboard: :class:`~prompt_toolkit.clipboard.base.Clipboard` instance.
@@ -171,11 +171,11 @@ class Prompt(object):
     :param get_prompt_tokens: An optional callable that returns the tokens to be
         shown in the menu. (To be used instead of a `message`.)
     :param display_completions_in_columns: `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter`. Display the completions in
+        :class:`~prompt_toolkit.filters.AppFilter`. Display the completions in
         multiple columns.
     :param get_title: Callable that returns the title to be displayed in the
         terminal.
-    :param mouse_support: `bool` or :class:`~prompt_toolkit.filters.CLIFilter`
+    :param mouse_support: `bool` or :class:`~prompt_toolkit.filters.AppFilter`
         to enable mouse support.
     :param default: The default input text to be shown. (This can be edited by
         the user).
@@ -286,7 +286,7 @@ class Prompt(object):
             can either be a boolean or a `SimpleFilter`.
 
             This returns something that can be used as either a `SimpleFilter`
-            or `CLIFilter`.
+            or `AppFilter`.
             """
             @Condition
             def dynamic(*a):

@@ -10,7 +10,7 @@ from six.moves import range
 
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.search_state import SearchState
 from prompt_toolkit.selection import SelectionType
@@ -213,8 +213,8 @@ class TokenListControl(UIControl):
         assert get_default_char is None or callable(get_default_char)
         assert not (default_char and get_default_char)
 
-        self.align_right = to_cli_filter(align_right)
-        self.align_center = to_cli_filter(align_center)
+        self.align_right = to_app_filter(align_right)
+        self.align_center = to_app_filter(align_center)
 
         self.get_tokens = get_tokens
 
@@ -425,7 +425,7 @@ class BufferControl(UIControl):
         :class:`~prompt_toolkit.layout.processors.MergedProcessor` if you want
         to apply multiple processors.)
     :param lexer: :class:`~prompt_toolkit.layout.lexers.Lexer` instance for syntax highlighting.
-    :param preview_search: `bool` or `CLIFilter`: Show search while typing.
+    :param preview_search: `bool` or `AppFilter`: Show search while typing.
     :param get_search_state: Callable that returns the SearchState to be used.
     :param default_char: :class:`.Char` instance to use to fill the background. This is
         transparent by default.
@@ -466,9 +466,9 @@ class BufferControl(UIControl):
                 DisplayMultipleCursors(),
             ])
 
-        self.preview_search = to_cli_filter(preview_search)
+        self.preview_search = to_app_filter(preview_search)
         self.get_search_state = get_search_state
-        self.focus_on_click = to_cli_filter(focus_on_click)
+        self.focus_on_click = to_app_filter(focus_on_click)
 
         self.input_processor = input_processor
         self.buffer = buffer

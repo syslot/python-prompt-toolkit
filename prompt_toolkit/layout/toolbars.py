@@ -10,7 +10,7 @@ from .utils import token_list_len
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import SYSTEM_BUFFER, SearchDirection
 from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone, EmacsMode, ViMode, ViNavigationMode, IsSearching
-from prompt_toolkit.filters import to_cli_filter
+from prompt_toolkit.filters import to_app_filter
 from prompt_toolkit.key_binding.registry import Registry, MergedRegistry, ConditionalRegistry
 from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
@@ -40,7 +40,7 @@ class SystemToolbarControl(BufferControl):
     :param enable: filter that enables the key bindings.
     """
     def __init__(self, loop, enable=True):
-        self.enable = to_cli_filter(enable)
+        self.enable = to_app_filter(enable)
         token = Token.Toolbar.System
         self.system_buffer = Buffer(name=SYSTEM_BUFFER, loop=loop)
 

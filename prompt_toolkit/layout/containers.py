@@ -14,7 +14,7 @@ from .margins import Margin
 from .screen import Point, WritePosition, _CHAR_CACHE
 from .utils import token_list_to_text, explode_tokens
 from prompt_toolkit.cache import SimpleCache
-from prompt_toolkit.filters import to_cli_filter, ViInsertMode, EmacsInsertMode
+from prompt_toolkit.filters import to_app_filter, ViInsertMode, EmacsInsertMode
 from prompt_toolkit.mouse_events import MouseEvent, MouseEventType
 from prompt_toolkit.reactive import Integer
 from prompt_toolkit.token import Token
@@ -860,12 +860,12 @@ class Window(Container):
         cursor. When both top and bottom are a very high number, the cursor
         will be centered vertically most of the time.
     :param allow_scroll_beyond_bottom: A `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter` instance. When True, allow
+        :class:`~prompt_toolkit.filters.AppFilter` instance. When True, allow
         scrolling so far, that the top part of the content is not visible
         anymore, while there is still empty space available at the bottom of
         the window. In the Vi editor for instance, this is possible. You will
         see tildes while the top part of the body is hidden.
-    :param wrap_lines: A `bool` or :class:`~prompt_toolkit.filters.CLIFilter`
+    :param wrap_lines: A `bool` or :class:`~prompt_toolkit.filters.AppFilter`
         instance. When True, don't scroll horizontally, but wrap lines instead.
     :param get_vertical_scroll: Callable that takes this window
         instance as input and returns a preferred vertical scroll.
@@ -874,12 +874,12 @@ class Window(Container):
     :param get_horizontal_scroll: Callable that takes this window
         instance as input and returns a preferred vertical scroll.
     :param always_hide_cursor: A `bool` or
-        :class:`~prompt_toolkit.filters.CLIFilter` instance. When True, never
+        :class:`~prompt_toolkit.filters.AppFilter` instance. When True, never
         display the cursor, even when the user control specifies a cursor
         position.
-    :param cursorline: A `bool` or :class:`~prompt_toolkit.filters.CLIFilter`
+    :param cursorline: A `bool` or :class:`~prompt_toolkit.filters.AppFilter`
         instance. When True, display a cursorline.
-    :param cursorcolumn: A `bool` or :class:`~prompt_toolkit.filters.CLIFilter`
+    :param cursorcolumn: A `bool` or :class:`~prompt_toolkit.filters.AppFilter`
         instance. When True, display a cursorcolumn.
     :param get_colorcolumns: A callable that takes a `Application` and
         returns a a list of :class:`.ColorColumn` instances that describe the
@@ -910,11 +910,11 @@ class Window(Container):
         assert get_horizontal_scroll is None or callable(get_horizontal_scroll)
         assert get_colorcolumns is None or callable(get_colorcolumns)
 
-        self.allow_scroll_beyond_bottom = to_cli_filter(allow_scroll_beyond_bottom)
-        self.always_hide_cursor = to_cli_filter(always_hide_cursor)
-        self.wrap_lines = to_cli_filter(wrap_lines)
-        self.cursorline = to_cli_filter(cursorline)
-        self.cursorcolumn = to_cli_filter(cursorcolumn)
+        self.allow_scroll_beyond_bottom = to_app_filter(allow_scroll_beyond_bottom)
+        self.always_hide_cursor = to_app_filter(always_hide_cursor)
+        self.wrap_lines = to_app_filter(wrap_lines)
+        self.cursorline = to_app_filter(cursorline)
+        self.cursorcolumn = to_app_filter(cursorcolumn)
 
         self.content = content
         self.dont_extend_width = dont_extend_width
@@ -1631,13 +1631,13 @@ class ConditionalContainer(Container):
     displayed or not.
 
     :param content: :class:`.Container` instance.
-    :param filter: :class:`~prompt_toolkit.filters.CLIFilter` instance.
+    :param filter: :class:`~prompt_toolkit.filters.AppFilter` instance.
     """
     def __init__(self, content, filter):
         assert isinstance(content, Container)
 
         self.content = content
-        self.filter = to_cli_filter(filter)
+        self.filter = to_app_filter(filter)
 
     def __repr__(self):
         return 'ConditionalContainer(%r, filter=%r)' % (self.content, self.filter)

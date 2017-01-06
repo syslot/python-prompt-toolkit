@@ -10,7 +10,7 @@ from __future__ import unicode_literals
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 
-from .filters import to_cli_filter
+from .filters import to_app_filter
 
 __all__ = (
     'Suggestion',
@@ -90,7 +90,7 @@ class ConditionalAutoSuggest(AutoSuggest):
         assert isinstance(auto_suggest, AutoSuggest)
 
         self.auto_suggest = auto_suggest
-        self.filter = to_cli_filter(filter)
+        self.filter = to_app_filter(filter)
 
     def get_suggestion(self, app, buffer, document):
         if self.filter(app):
