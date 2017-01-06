@@ -6,6 +6,7 @@ import weakref
 __all__ = (
     'AppFilter',
     'SimpleFilter',
+    'CLIFilter',
 )
 
 # Cache for _FilterTypeMeta. (Don't test the same __instancecheck__ twice as
@@ -53,3 +54,7 @@ class SimpleFilter(_FilterType):
     Abstract base class for filters that don't accept any arguments.
     """
     arguments_list = []
+
+
+# Deprecated alias.
+CLIFilter = AppFilter
