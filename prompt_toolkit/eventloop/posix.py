@@ -37,7 +37,7 @@ class PosixEventLoop(EventLoop):
         self._callbacks = None
 
         self._calls_from_executor = []
-        self._read_fds = {} # Maps fd to handler.
+        self._read_fds = {}  # Maps fd to handler.
         self.selector = selector()
 
         # Create a pipe for inter thread communication.
