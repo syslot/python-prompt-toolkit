@@ -9,11 +9,12 @@ from .screen import Char
 from .utils import token_list_len
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import SYSTEM_BUFFER, SearchDirection
-from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.filters import HasFocus, HasArg, HasCompletions, HasValidationError, IsSearching, Always, IsDone, EmacsMode, ViMode, ViNavigationMode, IsSearching
+from prompt_toolkit.filters import to_cli_filter
 from prompt_toolkit.key_binding.registry import Registry, MergedRegistry, ConditionalRegistry
-from prompt_toolkit.token import Token
+from prompt_toolkit.key_binding.vi_state import InputMode
 from prompt_toolkit.keys import Keys
+from prompt_toolkit.token import Token
 
 __all__ = (
     'TokenListToolbar',
@@ -35,7 +36,11 @@ class TokenListToolbar(ConditionalContainer):
 
 
 class SystemToolbarControl(BufferControl):
-    def __init__(self, loop):
+    """
+    :param enable: filter that enables the key bindings.
+    """
+    def __init__(self, loop, enable=True):
+        self.enable = to_cli_filter(enable)
         token = Token.Toolbar.System
         self.system_buffer = Buffer(name=SYSTEM_BUFFER, loop=loop)
 
@@ -54,7 +59,8 @@ class SystemToolbarControl(BufferControl):
         emacs_registry = Registry()
         handle = emacs_registry.add_binding
 
-        @handle(Keys.Escape, '!', filter= ~has_focus & EmacsMode())
+        @handle(Keys.Escape, '!', filter= ~has_focus & EmacsMode() &
+                self.enable)
         def _(event):
             " M-'!' will focus this user control. "
             event.app.focussed_control = self
@@ -110,8 +116,8 @@ class SystemToolbarControl(BufferControl):
 
 
 class SystemToolbar(ConditionalContainer):
-    def __init__(self, loop):
-        self.control = SystemToolbarControl(loop=loop)
+    def __init__(self, loop, enable=True):
+        self.control = SystemToolbarControl(loop=loop, enable=enable)
         super(SystemToolbar, self).__init__(
             content=Window(self.control,
                 height=LayoutDimension.exact(1)),

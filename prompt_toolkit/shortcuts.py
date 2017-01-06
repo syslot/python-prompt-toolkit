@@ -432,7 +432,7 @@ class Prompt(object):
                 ]
             ),
             ValidationToolbar(),
-            SystemToolbar(self.loop),
+            SystemToolbar(self.loop, enable=dyncond('enable_system_bindings')),
 
             # In multiline mode, we use two toolbars for 'arg' and 'search'.
             ConditionalContainer(ArgToolbar(), dyncond('multiline')),
