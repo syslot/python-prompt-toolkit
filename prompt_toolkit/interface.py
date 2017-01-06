@@ -998,7 +998,6 @@ class _CombinedRegistry(BaseRegistry):
 
     @property
     def _registry(self):
-        from layout.utils import find_all_controls
         current_control = self.cli.focussed_control
         visible_controls = self.cli.rendered_user_controls
         visible_controls = list(find_all_controls(self.cli.layout))#self.cli.rendered_user_controls
