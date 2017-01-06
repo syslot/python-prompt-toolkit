@@ -123,7 +123,7 @@ def _display_completions_like_readline(app, completions):
 
                     if page != page_count - 1:
                         # Display --MORE-- and go to the next page.
-                        show_more = yield _create_more_application(app.eventloop)
+                        show_more = yield _create_more_application(app.loop)
                         if not show_more:
                             return
             else:
@@ -139,7 +139,7 @@ def _create_more_application(loop):
     """
     Create an `Application` instance that displays the "--MORE--".
     """
-    from prompt_toolkit.shortcuts import create_prompt_application
+    from prompt_toolkit.shortcuts import Prompt
     registry = Registry()
 
     @registry.add_binding(' ')
@@ -159,6 +159,6 @@ def _create_more_application(loop):
     def _(event):
         event.app.set_return_value(False)
 
-    return create_prompt_application('--MORE--',
+    return Prompt('--MORE--',
         loop=loop, extra_key_bindings=registry,
-        include_default_key_bindings=False, erase_when_done=True)
+        include_default_key_bindings=False, erase_when_done=True).app
