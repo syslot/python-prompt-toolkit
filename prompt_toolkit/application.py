@@ -578,41 +578,28 @@ class Application(object):
         return future
 
     def exit(self):
-        """
-        Set exit. When Control-D has been pressed.
-        """
-        on_exit = self.on_exit
+        " Set exit. When Control-D has been pressed. "
         self._exit_flag = True
-        self._redraw()
-
-        if on_exit == AbortAction.RAISE_EXCEPTION:
-            self.future.set_exception(EOFError)
-
-        elif on_exit == AbortAction.RETRY:
-            self.reset()
-            self.renderer.request_absolute_cursor_position()
-            self.current_buffer.reset()
-
-        elif on_exit == AbortAction.RETURN_NONE:
-            self.set_return_value(None)
+        self._handle_abort_action(self.on_exit, EOFError)
 
     def abort(self):
-        """
-        Set abort. When Control-C has been pressed.
-        """
-        on_abort = self.on_abort
+        " Set abort. When Control-C has been pressed. "
         self._abort_flag = True
-        self._redraw()
+        self._handle_abort_action(self.on_abort, KeyboardInterrupt)
 
-        if on_abort == AbortAction.RAISE_EXCEPTION:
-            self.future.set_exception(KeyboardInterrupt)
+    def _handle_abort_action(self, action, exception):
+        " Handle abort/exit action. "
+        self._redraw(render_as_done=True)
 
-        elif on_abort == AbortAction.RETRY:
+        if action == AbortAction.RAISE_EXCEPTION:
+            self.future.set_exception(exception)
+
+        elif action == AbortAction.RETRY:
             self.reset()
             self.renderer.request_absolute_cursor_position()
             self.current_buffer.reset()
 
-        elif on_abort == AbortAction.RETURN_NONE:
+        elif action == AbortAction.RETURN_NONE:
             self.set_return_value(None)
 
     def set_return_value(self, value):
