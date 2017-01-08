@@ -200,7 +200,7 @@ class HSplit(Container):
                 sizes[i] += 1
             i = next(child_generator)
 
-        if not any([app.is_returning, app.is_exiting, app.is_aborting]):
+        if not app.is_done:
             while sum(sizes) < min(write_position.height, sum_dimensions.max):
                 # Increase until we use all the available space. (or until "max")
                 if sizes[i] < dimensions[i].max:
@@ -1324,7 +1324,7 @@ class Window(Container):
 
         # Draw input characters from the input processor queue.
         if has_focus and ui_content.cursor_position:
-            self._show_input_processor_key_buffer(app, new_screen)
+            self._show_key_processor_key_buffer(app, new_screen)
 
         # Set menu position.
         if not new_screen.menu_position and ui_content.menu_position:
@@ -1347,7 +1347,7 @@ class Window(Container):
             new_screen.data_buffer[cpos.y][cpos.x] = \
                 _CHAR_CACHE[digraph_char, Token.Digraph]
 
-    def _show_input_processor_key_buffer(self, app, new_screen):
+    def _show_key_processor_key_buffer(self, app, new_screen):
         """
         When the user is typing a key binding that consists of several keys,
         display the last pressed key if the user is in insert mode and the key
@@ -1355,7 +1355,7 @@ class Window(Container):
         E.g. Some people want to bind 'jj' to escape in Vi insert mode. But the
              first 'j' needs to be displayed in order to get some feedback.
         """
-        key_buffer = app.input_processor.key_buffer
+        key_buffer = app.key_processor.key_buffer
 
         if key_buffer and _in_insert_mode(app) and not app.is_done:
             # The textual data for the given key. (Can be a VT100 escape

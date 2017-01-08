@@ -16,7 +16,8 @@ class EventLoop(with_metaclass(ABCMeta, object)):
     """
     Eventloop interface.
     """
-    def run(self, stdin, callbacks):
+    # <<<<<
+    def run_until_complete(self, stdin, callbacks):
         """
         Run the eventloop until stop() is called. Report all
         input/timeout/terminal-resize events to the callbacks.
@@ -26,18 +27,18 @@ class EventLoop(with_metaclass(ABCMeta, object)):
         """
         raise NotImplementedError("This eventloop doesn't implement synchronous 'run()'.")
 
-    def run_as_coroutine(self, stdin, callbacks):
-        """
-        Similar to `run`, but this is a coroutine. (For asyncio integration.)
-        """
-        raise NotImplementedError("This eventloop doesn't implement 'run_as_coroutine()'.")
+#    def run_as_coroutine(self, stdin, callbacks):
+#        """
+#        Similar to `run`, but this is a coroutine. (For asyncio integration.)
+#        """
+#        raise NotImplementedError("This eventloop doesn't implement 'run_as_coroutine()'.")
+#
+    # >>>>
 
-    @abstractmethod
-    def stop(self):
+    def run_until_complete(self, future):
         """
-        Stop the `run` call. (Normally called by
-        :class:`~prompt_toolkit.application.Application`, when a result is
-        available, or Abort/Quit has been called.)
+        Keep running until this future has been set.
+        Return the Future's result, or raise its exception.
         """
 
     @abstractmethod

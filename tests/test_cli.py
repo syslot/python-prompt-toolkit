@@ -6,20 +6,14 @@ input and check the result.
 from __future__ import unicode_literals
 
 from functools import partial
-from prompt_toolkit.application import Application
-from prompt_toolkit.buffer import Buffer, AcceptAction
 from prompt_toolkit.clipboard import InMemoryClipboard, ClipboardData
-from prompt_toolkit.enums import DEFAULT_BUFFER, EditingMode
-from prompt_toolkit.eventloop.posix import PosixEventLoop
+from prompt_toolkit.enums import EditingMode
 from prompt_toolkit.filters import ViInsertMode
 from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.input import PipeInput
-from prompt_toolkit.input.vt100 import ANSI_SEQUENCES
+from prompt_toolkit.input.vt100 import PipeInput
+from prompt_toolkit.input.vt100_parser import ANSI_SEQUENCES
 from prompt_toolkit.key_binding.bindings.named_commands import prefix_meta
-from prompt_toolkit.key_binding.manager import KeyBindingManager
 from prompt_toolkit.key_binding.registry import Registry
-from prompt_toolkit.layout.containers import Window
-from prompt_toolkit.layout.controls import BufferControl
 from prompt_toolkit.output import DummyOutput
 from prompt_toolkit.shortcuts import Prompt
 import pytest
@@ -46,10 +40,10 @@ def _feed_cli_with_input(
     if check_line_ending:
         assert text.endswith('\r')
 
-    try:
-        inp = PipeInput()
-        inp.send_text(text)
+    inp = PipeInput()
 
+    try:
+        inp.send_text(text)
         p = Prompt(input=inp, output=DummyOutput(), editing_mode=editing_mode,
                    history=history, multiline=multiline, clipboard=clipboard,
                    extra_key_bindings=extra_key_bindings)

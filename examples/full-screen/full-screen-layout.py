@@ -10,13 +10,12 @@ from __future__ import unicode_literals
 from prompt_toolkit.application import Application
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.enums import DEFAULT_BUFFER
-from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.key_binding.defaults import load_key_bindings
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.containers import VSplit, HSplit, Window
 from prompt_toolkit.layout.controls import BufferControl, FillControl, TokenListControl
 from prompt_toolkit.layout.dimension import LayoutDimension as D
-from prompt_toolkit.shortcuts import create_eventloop
+from prompt_toolkit.eventloop.defaults import create_event_loop
 from prompt_toolkit.token import Token
 
 
@@ -43,7 +42,7 @@ from prompt_toolkit.token import Token
 layout = VSplit([
     # One window that holds the BufferControl with the default buffer on the
     # left.
-    Window(content=BufferControl(buffer_name=DEFAULT_BUFFER)),
+    Window(content=BufferControl(name=DEFAULT_BUFFER)),
 
     # A vertical line in the middle. We explicitely specify the width, to make
     # sure that the layout engine will not try to divide the whole width by
@@ -53,7 +52,7 @@ layout = VSplit([
            content=FillControl('|', token=Token.Line)),
 
     # Display the Result buffer on the right.
-    Window(content=BufferControl(buffer_name='RESULT')),
+    Window(content=BufferControl(name='RESULT')),
 ])
 
 # As a demonstration. Let's add a title bar to the top, displaying "Hello world".
@@ -157,6 +156,7 @@ buffers[DEFAULT_BUFFER].on_text_changed += default_buffer_changed
 # This glues everything together.
 
 application = Application(
+    loop=loop,
     layout=layout,
     buffers=buffers,
     key_bindings_registry=registry,
@@ -183,12 +183,9 @@ def run():
     eventloop = create_eventloop()
 
     try:
-        # Create a `CommandLineInterface` instance. This is a wrapper around
-        # `Application`, but includes all I/O: eventloops, terminal input and output.
-        app = CommandLineInterface(application=application, eventloop=eventloop)
 
         # Run the interface. (This runs the event loop until Ctrl-Q is pressed.)
-        app.run()
+        application.run()
 
     finally:
         # Clean up. An eventloop creates a posix pipe. This is used internally

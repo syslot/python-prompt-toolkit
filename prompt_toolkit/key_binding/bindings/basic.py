@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.enums import DEFAULT_BUFFER
 from prompt_toolkit.filters import HasSelection, Condition, EmacsInsertMode, ViInsertMode, InPasteMode
-from prompt_toolkit.key_binding.input_processor import KeyPress
+from prompt_toolkit.key_binding.key_processor import KeyPress
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout.screen import Point
 from prompt_toolkit.mouse_events import MouseEventType, MouseEvent
@@ -167,7 +167,7 @@ def load_basic_bindings():
         (It appears that some terminals send \n instead of \r when pressing
         enter. - at least the Linux subsytem for Windows.)
         """
-        event.input_processor.feed(
+        event.key_processor.feed(
             KeyPress(Keys.ControlM, '\r'))
 
     # Delete the word before the cursor.

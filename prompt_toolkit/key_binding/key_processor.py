@@ -1,9 +1,9 @@
 # *** encoding: utf-8 ***
 """
-An :class:`~.InputProcessor` receives callbacks for the keystrokes parsed from
+An :class:`~.KeyProcessor` receives callbacks for the keystrokes parsed from
 the input in the :class:`~prompt_toolkit.inputstream.InputStream` instance.
 
-The `InputProcessor` will according to the implemented keybindings call the
+The `KeyProcessor` will according to the implemented keybindings call the
 correct callbacks when new key presses are feed through `feed`.
 """
 from __future__ import unicode_literals
@@ -20,7 +20,7 @@ import weakref
 import six
 
 __all__ = (
-    'InputProcessor',
+    'KeyProcessor',
     'KeyPress',
 )
 
@@ -48,14 +48,14 @@ class KeyPress(object):
         return self.key == other.key and self.data == other.data
 
 
-class InputProcessor(object):
+class KeyProcessor(object):
     """
     Statemachine that receives :class:`KeyPress` instances and according to the
     key bindings in the given :class:`Registry`, calls the matching handlers.
 
     ::
 
-        p = InputProcessor(registry)
+        p = KeyProcessor(registry)
 
         # Send keys into the processor.
         p.feed(KeyPress(Keys.ControlX, '\x18'))
@@ -193,13 +193,23 @@ class InputProcessor(object):
                     if not found:
                         del buffer[:1]
 
-    def feed(self, key_press):
+    def feed(self, key_press, first=False):
         """
         Add a new :class:`KeyPress` to the input queue.
         (Don't forget to call `process_keys` in order to process the queue.)
+
+        :param first: If true, insert before everything else.
         """
         assert isinstance(key_press, KeyPress)
-        self.input_queue.append(key_press)
+        if first:
+            self.input_queue.appendleft(key_press)
+        else:
+            self.input_queue.append(key_press)
+
+    def feed_multiple(self, key_presses):
+        """
+        """
+        self.input_queue.extend(key_presses)
 
     def process_keys(self):
         """
@@ -286,15 +296,15 @@ class KeyPressEvent(object):
     """
     Key press event, delivered to key bindings.
 
-    :param input_processor_ref: Weak reference to the `InputProcessor`.
+    :param key_processor_ref: Weak reference to the `KeyProcessor`.
     :param arg: Repetition argument.
     :param key_sequence: List of `KeyPress` instances.
     :param previouskey_sequence: Previous list of `KeyPress` instances.
     :param is_repeat: True when the previous event was delivered to the same handler.
     """
-    def __init__(self, input_processor_ref, arg=None, key_sequence=None,
+    def __init__(self, key_processor_ref, arg=None, key_sequence=None,
             previous_key_sequence=None, is_repeat=False):
-        self._input_processor_ref = input_processor_ref
+        self._key_processor_ref = key_processor_ref
         self.key_sequence = key_sequence
         self.previous_key_sequence = previous_key_sequence
 
@@ -312,15 +322,15 @@ class KeyPressEvent(object):
         return self.key_sequence[-1].data
 
     @property
-    def input_processor(self):
-        return self._input_processor_ref()
+    def key_processor(self):
+        return self._key_processor_ref()
 
     @property
     def app(self):
         """
         Command line interface.
         """
-        return self.input_processor._app_ref()
+        return self.key_processor._app_ref()
 
     @property
     def current_buffer(self):
@@ -369,4 +379,4 @@ class KeyPressEvent(object):
         else:
             result = "%s%s" % (current, data)
 
-        self.input_processor.arg = result
+        self.key_processor.arg = result

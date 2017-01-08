@@ -5,12 +5,13 @@ from .cache import SimpleCache
 from .clipboard import Clipboard, InMemoryClipboard
 from .enums import EditingMode
 from .eventloop.base import EventLoop
-from .eventloop.callbacks import EventLoopCallbacks
+from .eventloop.future import Future
 from .filters import AppFilter, to_app_filter
-from .filters import Condition, IsSearching
-from .input import StdinInput, Input
+from .filters import Condition
+from .input.base import Input
+from .input.defaults import create_input
 from .key_binding.defaults import load_key_bindings
-from .key_binding.input_processor import InputProcessor, KeyPress
+from .key_binding.key_processor import KeyProcessor
 from .key_binding.registry import Registry, BaseRegistry, MergedRegistry, ConditionalRegistry
 from .key_binding.vi_state import ViState
 from .keys import Keys
@@ -29,7 +30,6 @@ from subprocess import Popen
 import functools
 import os
 import signal
-import six
 import six
 import sys
 import textwrap
@@ -87,8 +87,6 @@ class Application(object):
 
     :param on_input_timeout: Called when there is no input for x seconds.
                     (Fired when any eventloop.onInputTimeout is fired.)
-    :param on_start: Called when reading input starts.
-    :param on_stop: Called when reading input ends.
     :param on_reset: Called during reset.
     :param on_render: Called right after rendering.
     :param on_invalidate: Called when the UI has been invalidated.
@@ -116,7 +114,7 @@ class Application(object):
                  reverse_vi_search_direction=False,
                  focussed_control=None,
 
-                 on_input_timeout=None, on_start=None, on_stop=None,
+                 on_input_timeout=None,
                  on_reset=None, on_render=None, on_invalidate=None,
 
                  # I/O.
@@ -140,8 +138,6 @@ class Application(object):
         assert isinstance(erase_when_done, bool)
         assert focussed_control is None or isinstance(focussed_control, UIControl)
 
-        assert on_start is None or callable(on_start)
-        assert on_stop is None or callable(on_stop)
         assert on_reset is None or callable(on_reset)
         assert on_render is None or callable(on_render)
         assert on_invalidate is None or callable(on_invalidate)
@@ -177,13 +173,11 @@ class Application(object):
         self.on_invalidate = Event(self, on_invalidate)
         self.on_render = Event(self, on_render)
         self.on_reset = Event(self, on_reset)
-        self.on_start = Event(self, on_start)
-        self.on_stop = Event(self, on_stop)
 
         # I/O.
         self.loop = loop
         self.output = output or create_output()
-        self.input = input or StdinInput(sys.stdin)
+        self.input = input or create_input(sys.stdin)
 
         self.focus = Focus(layout, focussed_control)
 
@@ -191,7 +185,7 @@ class Application(object):
         self.pre_run_callables = []
 
         self._is_running = False
-        self._done_callback = None
+        self.future = None
 
         #: Quoted insert. This flag is set if we go into quoted insert mode.
         self.quoted_insert = False
@@ -225,10 +219,10 @@ class Application(object):
         self._invalidate_events = []  # Collection of 'invalidate' Event objects.
 
         #: The `InputProcessor` instance.
-        self.input_processor = InputProcessor(_CombinedRegistry(self), weakref.ref(self))
+        self.key_processor = KeyProcessor(_CombinedRegistry(self), weakref.ref(self))
 
-        # Pointer to sub CLI. (In chain of CLI instances.)
-        self._sub_cli = None  # None or other Application instance.
+        # Pointer to child Application. (In chain of Application instances.)
+        self._child_app = None  # None or other Application instance.
 
         # Trigger initialize callback.
         self.reset()
@@ -309,10 +303,8 @@ class Application(object):
         self._exit_flag = False
         self._abort_flag = False
 
-        self._return_value = None
-
         self.renderer.reset()
-        self.input_processor.reset()
+        self.key_processor.reset()
         self.layout.reset()
         self.vi_state.reset()
 
@@ -351,20 +343,21 @@ class Application(object):
             self.loop.call_from_executor(
                 redraw, _max_postpone_until=_max_postpone_until)
 
-    def _redraw(self):
+    def _redraw(self, render_as_done=False):
         """
         Render the command line again. (Not thread safe!) (From other threads,
         or if unsure, use :meth:`.Application.invalidate`.)
         """
         # Only draw when no sub application was started.
-        if self._is_running and self._sub_cli is None:
+        if self._is_running and self._child_app is None:
             # Clear the 'rendered_ui_controls' list. (The `Window` class will
             # populate this during the next rendering.)
             self.rendered_user_controls = []
 
             # Render
             self.render_counter += 1
-            self.renderer.render(self, self.layout, is_done=self.is_done)
+            self.renderer.render(self, self.layout,
+                is_done=self.is_done or render_as_done)
 
             # Fire render event.
             self.on_render.fire()
@@ -419,109 +412,121 @@ class Application(object):
             c()
         del self.pre_run_callables[:]
 
-    def run(self, pre_run=None, _done=None):
+    def start(self, pre_run=None):
         """
-        Read input from the command line.
-        This runs the eventloop until a return value has been set.
-
-        :param pre_run: Callable that is called right after the reset has taken
-            place. This allows custom initialisation.
+        Start running the UI.
+        This returns a `Future`. You're supposed to call the
+        `run_until_complete` function of the event loop to actually run the UI.
         """
-        assert pre_run is None or callable(pre_run)
-        assert _done is None or callable(_done)
+        assert not self._is_running
+        self._is_running = True
+        f = Future(loop=self.loop)
 
-        try:
-            self._is_running = True
-            self._done_callback = _done or self.loop.stop
+        self.reset()
+        self._pre_run(pre_run)
 
-            self.on_start.fire()
-            self.reset()
+        raw_mode = self.input.raw_mode()
+        raw_mode.__enter__()
 
-            # Call pre_run.
-            self._pre_run(pre_run)
+        self.renderer.request_absolute_cursor_position()
+        self._redraw()
 
-            # Run eventloop in raw mode.
-            with self.input.raw_mode():
-                self.renderer.request_absolute_cursor_position()
-                self._redraw()
+        def feed_keys(keys):
+            self.key_processor.feed_multiple(keys)
+            self.key_processor.process_keys()
 
-                self.loop.run(self.input, self.create_eventloop_callbacks())
-        finally:
-            # Clean up renderer. (This will leave the alternate screen, if we use
-            # that.)
+        def read_from_input():
+            # Get keys from the input object.
+            keys = self.input.read_keys()
 
-            # If exit/abort haven't been called set, but another exception was
-            # thrown instead for some reason, make sure that we redraw in exit
-            # mode.
-            if not self.is_done:
-                self._exit_flag = True
-                self._redraw()
+            # Feed to input processor.
+            self.key_processor.feed_multiple(keys)
+            self.key_processor.process_keys()
 
+            # Quit when the input stream was closed.
+            if self.input.closed:
+            	f.set_exception(EOFError)
+
+        previous_input, previous_cb = self.loop.set_input(self.input, read_from_input)
+        previous_winch_handler = self.loop.add_signal_handler(signal.SIGWINCH, self._on_resize)  # XXX: not all operating systems have WINCH
+
+        def done():
+            raw_mode.__exit__()  # XXX arguments
+            self._redraw()
             self.renderer.reset()
-            self.on_stop.fire()
             self._is_running = False
 
-        # Return result.
-        return self.return_value()
+            if previous_input:
+                self.loop.set_input(previous_input, previous_cb)
+            self.loop.add_signal_handler(signal.SIGWINCH, previous_winch_handler)
 
-    try:
-        # The following `run_async` function is compiled at runtime
-        # because it contains syntax which is not supported on older Python
-        # versions. (A 'return' inside a generator.)
-        six.exec_(textwrap.dedent('''
-        async def run_async(self, pre_run=None, _done=None):
-            """
-            Same as `run`, but this returns a coroutine.
+        f.add_done_callback(done)
+        self.future = f
+        return f
 
-            This is only available on Python >3.5, with asyncio.
-            """
-            assert pre_run is None or callable(pre_run)
+    def run(self, pre_run=None):
+        """
+        A blocking 'run' call that waits until the UI is finished.
+        """
+        f = self.start(pre_run=pre_run)
+        self.loop.run_until_complete(f)
+        return f.result()
 
-            try:
-                self._is_running = True
-                self._done_callback = _done or self.loop.stop
+#    try:
+#        # The following `run_async` function is compiled at runtime
+#        # because it contains syntax which is not supported on older Python
+#        # versions. (A 'return' inside a generator.)
+#        six.exec_(textwrap.dedent('''
+#        async def run_async(self, pre_run=None, _done=None):
+#            """
+#            Same as `run`, but this returns a coroutine.
+#
+#            This is only available on Python >3.5, with asyncio.
+#            """
+#            assert pre_run is None or callable(pre_run)
+#
+#            try:
+#                self._is_running = True
+#                self._done_callback = _done or self.loop.stop
+#
+#                self.reset()
+#
+#                # Call pre_run.
+#                self._pre_run(pre_run)
+#
+#                with self.input.raw_mode():
+#                    self.renderer.request_absolute_cursor_position()
+#                    self._redraw()
+#
+#                    await self.loop.run_as_coroutine(
+#                            self.input, self.create_eventloop_callbacks())
+#
+#                return self.return_value()
+#            finally:
+#                if not self.is_done:
+#                    self._exit_flag = True
+#                    self._redraw()
+#
+#                self.renderer.reset()
+#                self._is_running = False
+#        '''))
+#    except SyntaxError:
+#        # Python2, or early versions of Python 3.
+#        def run_async(self, pre_run=None):
+#            """
+#            Same as `run`, but this returns a coroutine.
+#
+#            This is only available on Python >3.5, with asyncio.
+#            """
+#            raise NotImplementedError
 
-                self.on_start.fire()
-                self.reset()
-
-                # Call pre_run.
-                self._pre_run(pre_run)
-
-                with self.input.raw_mode():
-                    self.renderer.request_absolute_cursor_position()
-                    self._redraw()
-
-                    await self.loop.run_as_coroutine(
-                            self.input, self.create_eventloop_callbacks())
-
-                return self.return_value()
-            finally:
-                if not self.is_done:
-                    self._exit_flag = True
-                    self._redraw()
-
-                self.renderer.reset()
-                self.on_stop.fire()
-                self._is_running = False
-        '''))
-    except SyntaxError:
-        # Python2, or early versions of Python 3.
-        def run_async(self, pre_run=None):
-            """
-            Same as `run`, but this returns a coroutine.
-
-            This is only available on Python >3.5, with asyncio.
-            """
-            raise NotImplementedError
-
-    def run_sub_application(self, application, done_callback=None,
-                            _from_application_generator=False):
+    def run_sub_application(self, application, _from_application_generator=False):
         """
         Run a sub :class:`~prompt_toolkit.application.Application`.
 
         This will suspend the main application and display the sub application
-        until that one returns a value. The value is returned by calling
-        `done_callback` with the result.
+        until that one returns a value. A future that will contain the result
+        will be returned.
 
         The sub application will share the same I/O of the main application.
         That means, it uses the same input and output channels and it shares
@@ -533,9 +538,12 @@ class Application(object):
             done-- is handled differently.
         """
         assert isinstance(application, Application)
-        assert done_callback is None or callable(done_callback)
 
-        if self._sub_cli is not None:
+        assert application.loop == self.loop
+        application.input = self.input
+        application.output = self.output
+
+        if self._child_app is not None:
             raise RuntimeError('Another sub application started already.')
 
         # Erase current application.
@@ -544,6 +552,8 @@ class Application(object):
 
         # Callback when the sub app is done.
         def done():
+            self._child_app = None
+
             # Redraw sub app in done state.
             # and reset the renderer. (This reset will also quit the alternate
             # screen, if the sub application used that.)
@@ -553,26 +563,19 @@ class Application(object):
             application.renderer.reset()
             application._is_running = False  # Don't render anymore.
 
-            self._sub_cli = None
-
             # Restore main application.
             if not _from_application_generator:
                 self.renderer.request_absolute_cursor_position()
                 self._redraw()
 
-            # Deliver result.
-            if done_callback:
-                done_callback(application.return_value())
-
-        # Make sure that when the sub app is finished, it won't terminate the
-        # event loop, but instead call this callback.
-        application._done_callback = done
-
         # Allow rendering of sub app.
-        application._is_running = True
+        future = application.start()
+        future.add_done_callback(done)
 
         application._redraw()
-        self._sub_cli = application
+        self._child_app = application
+
+        return future
 
     def exit(self):
         """
@@ -583,9 +586,7 @@ class Application(object):
         self._redraw()
 
         if on_exit == AbortAction.RAISE_EXCEPTION:
-            def eof_error():
-                raise EOFError()
-            self._set_return_callable(eof_error)
+            self.future.set_exception(EOFError)
 
         elif on_exit == AbortAction.RETRY:
             self.reset()
@@ -604,9 +605,7 @@ class Application(object):
         self._redraw()
 
         if on_abort == AbortAction.RAISE_EXCEPTION:
-            def keyboard_interrupt():
-                raise KeyboardInterrupt()
-            self._set_return_callable(keyboard_interrupt)
+            self.future.set_exception(KeyboardInterrupt)
 
         elif on_abort == AbortAction.RETRY:
             self.reset()
@@ -616,21 +615,13 @@ class Application(object):
         elif on_abort == AbortAction.RETURN_NONE:
             self.set_return_value(None)
 
-    def set_return_value(self, document):
+    def set_return_value(self, value):
         """
         Set a return value. The eventloop can retrieve the result it by calling
         `return_value`.
         """
-        self._set_return_callable(lambda: document)
-        self._redraw()  # Redraw in "done" state, after the return value has been set.
-
-    def _set_return_callable(self, value):
-        assert callable(value)
-        self._return_value = value
-
-        # Stop main application.
-        if self._done_callback:
-            self._done_callback()
+        self.future.set_result(value)
+#        self._redraw()  # Redraw in "done" state, after the return value has been set.
 
     def run_in_terminal(self, func, render_cli_done=False):
         """
@@ -650,12 +641,10 @@ class Application(object):
         """
         # Draw interface in 'done' state, or erase.
         if render_cli_done:
-            self._return_value = True
-            self._redraw()
+            self._redraw(render_as_done=True)
             self.renderer.reset()  # Make sure to disable mouse mode, etc...
         else:
             self.renderer.erase()
-        self._return_value = None
 
         # Run system command.
         with self.input.cooked_mode():
@@ -675,11 +664,11 @@ class Application(object):
 
         Example:
 
-            def f():
+            def gen():
                 yield Application1(...)
                 print('...')
                 yield Application2(...)
-            app.run_in_terminal_async(f)
+            app.run_application_generator(gen)
 
         The values which are yielded by the given coroutine are supposed to be
         `Application` instances that run in the current CLI, all other code is
@@ -688,23 +677,28 @@ class Application(object):
         """
         # Draw interface in 'done' state, or erase.
         if render_cli_done:
-            self._return_value = True
-            self._redraw()
+            self._redraw(render_as_done=True)
             self.renderer.reset()  # Make sure to disable mouse mode, etc...
         else:
             self.renderer.erase()
-        self._return_value = None
 
         # Loop through the generator.
         g = coroutine()
         assert isinstance(g, types.GeneratorType)
 
-        def step_next(send_value=None):
+        def step_next(f=None):
             " Execute next step of the coroutine."
             try:
                 # Run until next yield, in cooked mode.
                 with self.input.cooked_mode():
-                    result = g.send(send_value)
+                    if f is None:
+                        result = g.send(None)
+                    else:
+                        exc = f.exception()
+                        if exc:
+                            result = g.throw(exc)
+                        else:
+                            result = g.send(f.result())
             except StopIteration:
                 done()
             except:
@@ -713,8 +707,8 @@ class Application(object):
             else:
                 # Process yielded value from coroutine.
                 assert isinstance(result, Application)
-                self.run_sub_application(result, done_callback=step_next,
-                                         _from_application_generator=True)
+                f = self.run_sub_application(result, _from_application_generator=True)
+                f.add_done_callback(lambda: step_next(f))
 
         def done():
             # Redraw interface again.
@@ -725,7 +719,7 @@ class Application(object):
         # Start processing coroutine.
         step_next()
 
-    def run_system_command(self, command):  # XXX: check this!
+    def run_system_command(self, command):
         """
         Run system command (While hiding the prompt. When finished, all the
         output will scroll above the prompt.)
@@ -750,6 +744,7 @@ class Application(object):
 
             prompt = Prompt(
                 message='Press ENTER to continue...',
+                loop=self.loop,
                 extra_key_bindings=registry,
                 include_default_key_bindings=False)
             self.run_sub_application(prompt.app)
@@ -822,22 +817,8 @@ class Application(object):
         return self._abort_flag
 
     @property
-    def is_returning(self):
-        " ``True`` when a return value has been set. "
-        return self._return_value is not None
-
-    def return_value(self):
-        """
-        Get the return value. Not that this method can throw an exception.
-        """
-        # Note that it's a method, not a property, because it can throw
-        # exceptions.
-        if self._return_value:
-            return self._return_value()
-
-    @property
     def is_done(self):
-        return self.is_exiting or self.is_aborting or self.is_returning
+        return self.future and self.future.done()
 
     def stdout_proxy(self, raw=False):
         """
@@ -863,50 +844,6 @@ class Application(object):
         return _PatchStdoutContext(
             self.stdout_proxy(raw=raw),
             patch_stdout=patch_stdout, patch_stderr=patch_stderr)
-
-    def create_eventloop_callbacks(self):
-        return _InterfaceEventLoopCallbacks(self)
-
-
-class _InterfaceEventLoopCallbacks(EventLoopCallbacks):
-    """
-    Callbacks on the :class:`.Application` object, to which an
-    eventloop can talk.
-    """
-    def __init__(self, app):
-        assert isinstance(app, Application)
-        self.app = app
-
-    @property
-    def _active_app(self):
-        " Return the active `Application`. "
-        app = self.app
-
-        # If there is a sub CLI. That one is always active.
-        while app._sub_cli:
-            app = app._sub_cli
-
-        return app
-
-    def terminal_size_changed(self):
-        " Report terminal size change. This will trigger a redraw. "
-        self._active_app._on_resize()
-
-    def input_timeout(self):
-        app = self._active_app
-        app.on_input_timeout.fire()
-
-    def feed_key(self, key_press):
-        " Feed a key press to the Application. "
-        assert isinstance(key_press, KeyPress)
-        app = self._active_app
-
-        # Feed the key and redraw.
-        # (When the CLI is in 'done' state, it should return to the event loop
-        # as soon as possible. Ignore all key presses beyond this point.)
-        if not app.is_done:
-            app.input_processor.feed(key_press)
-            app.input_processor.process_keys()
 
 
 class _PatchStdoutContext(object):

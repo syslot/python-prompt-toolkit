@@ -13,11 +13,11 @@ def create_event_loop(inputhook=None, recognize_win32_paste=True):
     :class:`~prompt_toolkit.eventloop.base.EventLoop` instance.
     """
     if is_windows():
-        from prompt_toolkit.eventloop.win32 import Win32EventLoop as Loop
-        return Loop(inputhook=inputhook, recognize_paste=recognize_win32_paste)
+        from .win32 import Win32EventLoop
+        return Win32EventLoop(inputhook=inputhook, recognize_paste=recognize_win32_paste)
     else:
-        from prompt_toolkit.eventloop.posix import PosixEventLoop as Loop
-        return Loop(inputhook=inputhook)
+        from .posix import PosixEventLoop
+        return PosixEventLoop(inputhook=inputhook)
 
 
 def create_asyncio_event_loop(loop=None):

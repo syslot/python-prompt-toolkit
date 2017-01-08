@@ -113,7 +113,8 @@ def _display_completions_like_readline(app, completions):
         if len(completions) > completions_per_page:
             # Ask confirmation if it doesn't fit on the screen.
             confirm_prompt = create_confirm_prompt(
-                'Display all {} possibilities? (y on n) '.format(len(completions)))
+                'Display all {} possibilities? (y on n) '.format(len(completions)),
+                loop=app.loop)
             confirm = yield confirm_prompt.app
 
             if confirm:

@@ -4,14 +4,18 @@ from ..utils import is_windows
 import sys
 import io
 
-if is_windows():
-    from .win32 import raw_mode, cooked_mode
-else:
-    from .vt100 import raw_mode, cooked_mode
-
 __all__ = (
     'StdinInput',
 )
+
+def create_input(stdin):
+    if is_windows():
+        from .win32 import raw_mode, cooked_mode
+        pass  # TODO
+    else:
+        from .vt100 import Vt100Input
+        return Vt100Input(stdin)
+
 
 
 class StdinInput(Input):

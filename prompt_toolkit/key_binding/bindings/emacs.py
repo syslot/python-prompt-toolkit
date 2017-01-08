@@ -116,13 +116,13 @@ def load_emacs_bindings():
         if event._arg is None:
             event.append_to_arg_count('-')
 
-    @handle('-', filter=Condition(lambda app: app.input_processor.arg == '-'))
+    @handle('-', filter=Condition(lambda app: app.key_processor.arg == '-'))
     def _(event):
         """
         When '-' is typed again, after exactly '-' has been given as an
         argument, ignore this.
         """
-        event.app.input_processor.arg = '-'
+        event.app.key_processor.arg = '-'
 
     is_returnable = Condition(
         lambda app: app.current_buffer.accept_action.is_returnable)

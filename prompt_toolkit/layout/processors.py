@@ -148,7 +148,7 @@ class HighlightSearchProcessor(Processor):
         searchmatch_current_token = (':', ) + Token.SearchMatch.Current
         searchmatch_token = (':', ) + Token.SearchMatch
 
-        if search_text and not app.is_returning:
+        if search_text and not app.is_done:
             # For each search match, replace the Token.
             line_text = token_list_to_text(tokens)
             tokens = explode_tokens(tokens)
@@ -384,10 +384,10 @@ class ShowArg(BeforeInput):
         super(ShowArg, self).__init__(self._get_tokens)
 
     def _get_tokens(self, app):
-        if app.input_processor.arg is None:
+        if app.key_processor.arg is None:
             return []
         else:
-            arg = app.input_processor.arg
+            arg = app.key_processor.arg
 
             return [
                 (Token.Prompt.Arg, '(arg: '),

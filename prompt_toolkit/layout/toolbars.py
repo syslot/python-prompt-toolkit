@@ -127,7 +127,7 @@ class SystemToolbar(ConditionalContainer):
 class ArgToolbarControl(TokenListControl):
     def __init__(self):
         def get_tokens(app):
-            arg = app.input_processor.arg
+            arg = app.key_processor.arg
             if arg == '-':
                 arg = '-1'
 

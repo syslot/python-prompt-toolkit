@@ -12,7 +12,7 @@ import six
 from .completion import generate_completions, display_completions_like_readline
 from prompt_toolkit.document import Document
 from prompt_toolkit.enums import EditingMode
-from prompt_toolkit.key_binding.input_processor import KeyPress
+from prompt_toolkit.key_binding.key_processor import KeyPress
 from prompt_toolkit.keys import Keys
 
 __all__ = (
@@ -460,7 +460,7 @@ def start_kbd_macro(event):
     """
     Begin saving the characters typed into the current keyboard macro.
     """
-    event.app.input_processor.start_macro()
+    event.app.key_processor.start_macro()
 
 
 @register('end-kbd-macro')
@@ -469,7 +469,7 @@ def end_kbd_macro(event):
     Stop saving the characters typed into the current keyboard macro and save
     the definition.
     """
-    event.app.input_processor.end_macro()
+    event.app.key_processor.end_macro()
 
 
 @register('call-last-kbd-macro')
@@ -478,7 +478,7 @@ def call_last_kbd_macro(event):
     Re-execute the last keyboard macro defined, by making the characters in the
     macro appear as if typed at the keyboard.
     """
-    event.app.input_processor.call_macro()
+    event.app.key_processor.call_macro()
 
 
 @register('print-last-kbd-macro')
@@ -486,7 +486,7 @@ def print_last_kbd_macro(event):
     " Print the last keboard macro. "
     # TODO: Make the format suitable for the inputrc file.
     def print_macro():
-        for k in event.app.input_processor.macro:
+        for k in event.app.key_processor.macro:
             print(k)
     event.app.run_in_terminal(print_macro)
 
@@ -546,7 +546,9 @@ def prefix_meta(event):
 
         registry.add_key_binding('j', 'j', filter=ViInsertMode())(prefix_meta)
     """
-    event.app.input_processor.feed(KeyPress(Keys.Escape))
+    # ('first' should be true, because we want to insert it at the current
+    # position in the queue.)
+    event.app.key_processor.feed(KeyPress(Keys.Escape), first=True)
 
 
 @register('operate-and-get-next')

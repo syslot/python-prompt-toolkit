@@ -18,7 +18,6 @@ __all__ = (
     'IsDone',
     'IsMultiline',
     'IsReadOnly',
-    'IsReturning',
     'RendererHeightIsKnown',
     'InEditingMode',
     'InPasteMode',
@@ -140,22 +139,10 @@ class HasArg(Filter):
     Enable when the input processor has an 'arg'.
     """
     def __call__(self, app):
-        return app.input_processor.arg is not None
+        return app.key_processor.arg is not None
 
     def __repr__(self):
         return 'HasArg()'
-
-
-@memoized()
-class IsReturning(Filter):
-    """
-    When a return value has been set.
-    """
-    def __call__(self, app):
-        return app.is_returning
-
-    def __repr__(self):
-        return 'IsReturning()'
 
 
 @memoized()

@@ -28,10 +28,10 @@ from .completion import DynamicCompleter
 from .document import Document
 from .enums import DEFAULT_BUFFER, SEARCH_BUFFER, EditingMode
 from .eventloop.base import EventLoop
-from .eventloop.defaults import create_event_loop, create_asyncio_event_loop
+from .eventloop.defaults import create_event_loop #, create_asyncio_event_loop
 from .filters import IsDone, HasFocus, RendererHeightIsKnown, to_simple_filter, Condition
 from .history import InMemoryHistory, DynamicHistory
-from .input import StdinInput
+from .input.defaults import create_input
 from .application import Application, AbortAction
 from .key_binding.defaults import load_key_bindings
 from .key_binding.registry import Registry, DynamicRegistry, MergedRegistry, ConditionalRegistry
@@ -254,7 +254,7 @@ class Prompt(object):
         loop = loop or create_event_loop()
 
         output = output or create_output(true_color)
-        input = input or StdinInput(sys.stdin)
+        input = input or create_input(sys.stdin)
         extra_input_processor = extra_input_processor
 
         history = history or InMemoryHistory()
@@ -694,7 +694,7 @@ class Prompt(object):
             return self.get_title()
 
     def close(self):
-        self.loop.close()
+        return#self.loop.close()
 
 
 def prompt(*a, **kw):
@@ -727,7 +727,7 @@ except SyntaxError:
             'prompt_async is only available for Python >3.5.')
 
 
-def create_confirm_prompt(message):
+def create_confirm_prompt(message, loop=None):
     """
     Create a `Prompt` object for the 'confirm' function.
     """
@@ -748,7 +748,8 @@ def create_confirm_prompt(message):
         event.app.set_return_value(False)
 
     prompt = Prompt(message, extra_key_bindings=registry,
-                    include_default_key_bindings=False)
+                    include_default_key_bindings=False,
+                    loop=loop)
     return prompt
 
 
